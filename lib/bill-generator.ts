@@ -1,6 +1,9 @@
 // Bill/Receipt generator utilities
 import { formatCurrency, formatDate } from './utils'
 
+// Base64 encoded logo (will be replaced with actual logo data)
+const LOGO_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
 export interface BillData {
   order_id: string
   customer_name: string
@@ -41,47 +44,66 @@ export function generateBillHTML(data: BillData): string {
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #2F2500;
             background: white;
             padding: 20px;
         }
         .bill-container {
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto;
             background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 2px solid #FFD11E;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(255, 209, 30, 0.1);
         }
         .header {
             text-align: center;
-            border-bottom: 2px solid #3b82f6;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            border-bottom: 3px solid #FFD11E;
+            padding-bottom: 25px;
+            margin-bottom: 35px;
+            background: linear-gradient(135deg, #FFF5CC 0%, #FBE9A0 100%);
+            border-radius: 12px;
+            padding: 25px;
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background: #FFD11E;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+            color: #2D3E50;
         }
         .company-name {
-            font-size: 28px;
-            font-weight: bold;
-            color: #1e40af;
+            font-size: 32px;
+            font-weight: 800;
+            color: #2D3E50;
             margin-bottom: 8px;
+            letter-spacing: -0.5px;
         }
         .bill-title {
-            font-size: 18px;
-            color: #6b7280;
+            font-size: 16px;
+            color: #2F2500;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            font-weight: 600;
         }
         .order-info {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 25px;
             margin-bottom: 30px;
-            padding: 20px;
-            background: #f9fafb;
-            border-radius: 8px;
+            padding: 25px;
+            background: #FFF5CC;
+            border-radius: 12px;
+            border: 1px solid #FBE9A0;
         }
         .info-item {
             display: flex;
@@ -89,39 +111,42 @@ export function generateBillHTML(data: BillData): string {
         }
         .info-label {
             font-size: 12px;
-            color: #6b7280;
+            color: #2B2E00;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            font-weight: 600;
         }
         .info-value {
             font-size: 16px;
-            font-weight: 600;
-            color: #111827;
+            font-weight: 700;
+            color: #2F2500;
         }
         .section {
             margin-bottom: 25px;
         }
         .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 12px;
-            padding-bottom: 6px;
-            border-bottom: 1px solid #d1d5db;
+            font-size: 20px;
+            font-weight: 700;
+            color: #2D3E50;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #FFD11E;
         }
         .items-table {
             width: 100%;
             border-collapse: collapse;
         }
         .items-table th {
-            background: #f3f4f6;
-            padding: 12px;
+            background: linear-gradient(135deg, #FFD11E 0%, #FBE9A0 100%);
+            padding: 15px;
             text-align: left;
             font-size: 14px;
-            font-weight: 600;
-            color: #374151;
-            border-bottom: 2px solid #d1d5db;
+            font-weight: 700;
+            color: #2F2500;
+            border-bottom: 2px solid #2D3E50;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         .items-table td {
             padding: 12px;
@@ -149,12 +174,15 @@ export function generateBillHTML(data: BillData): string {
         .subtotal { color: #6b7280; }
         .tax { color: #6b7280; }
         .final-total {
-            border-top: 2px solid #3b82f6;
-            padding-top: 12px;
-            margin-top: 8px;
-            font-size: 20px;
-            font-weight: bold;
-            color: #1e40af;
+            border-top: 3px solid #FFD11E;
+            padding-top: 15px;
+            margin-top: 10px;
+            font-size: 22px;
+            font-weight: 800;
+            color: #2D3E50;
+            background: linear-gradient(135deg, #FFF5CC 0%, #FBE9A0 100%);
+            padding: 15px;
+            border-radius: 8px;
         }
         .footer {
             margin-top: 30px;
@@ -186,9 +214,10 @@ export function generateBillHTML(data: BillData): string {
 <body>
     <div class="bill-container">
         <div class="header">
+            <div class="logo">🚴</div>
             <div class="company-name">CycleBees</div>
             <div class="bill-title">${data.status === 'confirmed' ? 'Confirmed Service Order' : 'Service Estimate'}</div>
-            ${data.isAdmin ? '<div style="color: #059669; font-weight: 600; margin-top: 8px;">ADMIN COPY</div>' : ''}
+            ${data.isAdmin ? '<div style="color: #2D3E50; font-weight: 700; margin-top: 12px; background: #FFD11E; padding: 8px 16px; border-radius: 20px; display: inline-block;">ADMIN COPY</div>' : ''}
         </div>
 
         <div class="order-info">

@@ -100,13 +100,13 @@ export default function RequestLookup() {
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="919876543210"
+                  placeholder="7005192650"
                   className="pl-8"
                   maxLength={15}
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Enter with country code (e.g., 91 for India)
+                Enter 10-digit mobile number (91 prefix will be added automatically)
               </p>
             </div>
 

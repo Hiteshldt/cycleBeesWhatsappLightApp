@@ -21,12 +21,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Normalize phone number (add 91 prefix if needed)
+    let normalizedPhone = phone.trim()
+    if (normalizedPhone.length === 10 && !normalizedPhone.startsWith('91')) {
+      normalizedPhone = '91' + normalizedPhone
+    }
+
     // Find request by order ID and phone number
     const { data: requestData, error } = await supabase
       .from('requests')
       .select('id, short_slug, order_id, customer_name, bike_name, status')
       .eq('order_id', orderId.trim())
-      .eq('phone_digits_intl', phone.trim())
+      .eq('phone_digits_intl', normalizedPhone)
       .single()
 
     if (error) {

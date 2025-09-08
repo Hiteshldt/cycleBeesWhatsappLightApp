@@ -26,7 +26,7 @@ export default function HomePage() {
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Find Your Service Request</h2>
             <p className="text-gray-600 mb-6">
-              Enter your Order ID to view your service details, track status, and download confirmed order PDF.
+              Enter your Order ID and phone number to view service details, select add-ons, and track your order status.
             </p>
             <Link href="/lookup">
               <Button className="w-full">

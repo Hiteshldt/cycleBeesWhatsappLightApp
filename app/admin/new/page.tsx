@@ -31,8 +31,8 @@ export default function NewRequestPage() {
         phone_digits_intl: '',
         status: 'draft',
       },
-      repair_items: [{ label: '', price_paise: 0, is_suggested: true }],
-      replacement_items: [{ label: '', price_paise: 0, is_suggested: true }],
+      repair_items: [],
+      replacement_items: [],
     },
   })
 
@@ -72,8 +72,12 @@ export default function NewRequestPage() {
   const onSubmit = async (data: CreateRequestData) => {
     setIsLoading(true)
     try {
-      // Data is already in paise from the form controllers
-      const processedData = data
+      // Filter out empty items and convert prices to paise
+      const processedData = {
+        ...data,
+        repair_items: data.repair_items.filter(item => item.label.trim() && item.price_paise > 0),
+        replacement_items: data.replacement_items.filter(item => item.label.trim() && item.price_paise > 0),
+      }
 
       const response = await fetch('/api/requests', {
         method: 'POST',
@@ -169,13 +173,13 @@ export default function NewRequestPage() {
                 <Input
                   id="phone"
                   {...register('request.phone_digits_intl')}
-                  placeholder="919876543210"
+                  placeholder="7005192650"
                   className="pl-8"
                   type="tel"
                   maxLength={15}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Enter with country code (e.g., 91 for India)</p>
+              <p className="text-xs text-gray-500 mt-1">Enter 10-digit mobile number (91 will be added automatically)</p>
               {errors.request?.phone_digits_intl && (
                 <p className="text-red-500 text-sm mt-1">
                   {errors.request.phone_digits_intl.message}
@@ -236,7 +240,7 @@ export default function NewRequestPage() {
                     size="sm"
                     variant="outline"
                     className="mb-0"
-                    disabled={repairFields.length === 1}
+                    disabled={false}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -297,7 +301,7 @@ export default function NewRequestPage() {
                     size="sm"
                     variant="outline"
                     className="mb-0"
-                    disabled={replacementFields.length === 1}
+                    disabled={false}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

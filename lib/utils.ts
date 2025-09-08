@@ -55,7 +55,30 @@ export function generateWhatsAppMessage(
   orderUrl: string
 ): string {
   const firstName = customerName.split(' ')[0]
-  return `Hi ${firstName}, your CycleBees service estimate for ${bikeName} (Order ${orderId}) is ready. Review & choose items here: ${orderUrl}`
+  
+  return `🚴‍♂️ *CycleBees* - Professional Bike Service
+
+Hello *${firstName}*! 👋
+
+Your service estimate is ready for:
+🚲 *Bike:* ${bikeName}
+📝 *Order ID:* ${orderId}
+
+✅ *Next Steps:*
+1. Click the link below to view your estimate
+2. Select your preferred services & add-ons
+3. Confirm your order for doorstep service
+
+🔗 *View Your Estimate:*
+${orderUrl}
+
+📞 *Need Help?*
+Our support team is here to assist you!
+
+🌐 *Visit us:* www.cyclebees.in
+For premium doorstep cycle repair services
+
+*CycleBees* - Your bike, our care! 💛`
 }
 
 // Format date for display

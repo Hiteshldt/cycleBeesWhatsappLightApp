@@ -23,18 +23,27 @@ export default function AdminLayout({
       return
     }
 
-    // Check authentication status
-    const authStatus = sessionStorage.getItem('adminAuth')
-    if (authStatus === 'authenticated') {
-      setIsAuthenticated(true)
-    } else {
-      router.push('/admin/login')
+    // Check authentication status with a small delay to ensure sessionStorage is available
+    const checkAuth = () => {
+      const authStatus = sessionStorage.getItem('adminAuth')
+      console.log('Checking auth status:', authStatus)
+      if (authStatus === 'authenticated') {
+        setIsAuthenticated(true)
+        setIsLoading(false)
+      } else {
+        console.log('Not authenticated, redirecting to login')
+        router.push('/admin/login')
+        setIsLoading(false)
+      }
     }
-    setIsLoading(false)
+
+    // Small delay to ensure sessionStorage is ready
+    setTimeout(checkAuth, 100)
   }, [pathname, router])
 
   const handleLogout = () => {
     sessionStorage.removeItem('adminAuth')
+    document.cookie = 'adminAuth=; path=/; max-age=0'
     router.push('/admin/login')
   }
 

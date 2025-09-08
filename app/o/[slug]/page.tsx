@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Request, RequestItem, Addon } from '@/lib/supabase'
@@ -16,6 +16,7 @@ type OrderData = {
 
 export default function PublicOrderPage() {
   const params = useParams()
+  const router = useRouter()
   const slug = params.slug as string
 
   const [orderData, setOrderData] = useState<OrderData | null>(null)
@@ -33,8 +34,23 @@ export default function PublicOrderPage() {
     if (slug) {
       fetchOrderData()
       fetchAddons()
+      loadSelections()
     }
   }, [slug])
+
+  const loadSelections = () => {
+    // Load selections from session storage
+    const savedItems = sessionStorage.getItem(`selectedItems_${slug}`)
+    const savedAddons = sessionStorage.getItem(`selectedAddons_${slug}`)
+    
+    if (savedItems) {
+      setSelectedItems(new Set(JSON.parse(savedItems)))
+    }
+    
+    if (savedAddons) {
+      setSelectedAddons(new Set(JSON.parse(savedAddons)))
+    }
+  }
 
   const fetchOrderData = async () => {
     try {
@@ -287,6 +303,17 @@ export default function PublicOrderPage() {
   const replacementItems = items.filter(item => item.section === 'replacement')
   const totals = calculateTotal()
 
+  // If order is not confirmed and no selections in session storage, redirect to services page
+  if (request.status !== 'confirmed') {
+    const hasSelections = sessionStorage.getItem(`selectedItems_${slug}`) || 
+                         sessionStorage.getItem(`selectedAddons_${slug}`)
+    
+    if (!hasSelections) {
+      router.replace(`/o/${slug}/services`)
+      return null
+    }
+  }
+
   // Check if order is cancelled
   if (request.status === 'cancelled') {
     return (
@@ -359,13 +386,67 @@ export default function PublicOrderPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6">
+        {/* Progress Indicator */}
+        <div className="flex items-center justify-center mb-8">
+          <div className="flex items-center">
+            <div className="flex items-center text-green-600">
+              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                ✓
+              </div>
+              <span className="ml-2 font-medium">Services Selected</span>
+            </div>
+            <div className="mx-4 w-16 h-1 bg-green-600 rounded"></div>
+            <div className="flex items-center text-green-600">
+              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                ✓
+              </div>
+              <span className="ml-2 font-medium">Add-ons Selected</span>
+            </div>
+            <div className="mx-4 w-16 h-1 bg-blue-600 rounded"></div>
+            <div className="flex items-center text-blue-600">
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                3
+              </div>
+              <span className="ml-2 font-medium">Confirm Order</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Options */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-blue-900">Ready to confirm your order?</h3>
+              <p className="text-sm text-blue-700 mt-1">Review your selections below or make changes before confirming</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/o/${slug}/services`)}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                Edit Services
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/o/${slug}/addons`)}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                Edit Add-ons
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* Order Summary */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Service Estimate for {request.bike_name}
           </h2>
           <p className="text-gray-600 mb-4">
-            Review the services and parts recommended for your bike. Select the items you want and download your estimate. All prices include GST.
+            Review your selected services and add-ons. Confirm your order to proceed with the service booking.
           </p>
           
           <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
@@ -388,37 +469,24 @@ export default function PublicOrderPage() {
           </div>
         </div>
 
-        {/* Repair Services */}
-        {repairItems.length > 0 && (
+        {/* Selected Repair Services */}
+        {repairItems.filter(item => selectedItems.has(item.id)).length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Repair Services</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Repair Services</h3>
             <div className="space-y-3">
-              {repairItems.map((item) => (
+              {repairItems.filter(item => selectedItems.has(item.id)).map((item) => (
                 <div
                   key={item.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedItems.has(item.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => toggleItemSelection(item.id)}
+                  className="flex items-center justify-between p-4 rounded-lg border border-green-200 bg-green-50"
                 >
                   <div className="flex items-center">
-                    <div
-                      className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center ${
-                        selectedItems.has(item.id)
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300'
-                      }`}
-                    >
-                      {selectedItems.has(item.id) && (
-                        <Check className="h-3 w-3 text-white" />
-                      )}
+                    <div className="w-5 h-5 rounded border-2 border-green-500 bg-green-500 mr-3 flex items-center justify-center">
+                      <Check className="h-3 w-3 text-white" />
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">{item.label}</p>
                       {item.is_suggested && (
-                        <p className="text-sm text-blue-600">Recommended</p>
+                        <p className="text-sm text-green-600">Recommended</p>
                       )}
                     </div>
                   </div>
@@ -431,37 +499,24 @@ export default function PublicOrderPage() {
           </div>
         )}
 
-        {/* Replacement Parts */}
-        {replacementItems.length > 0 && (
+        {/* Selected Replacement Parts */}
+        {replacementItems.filter(item => selectedItems.has(item.id)).length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Replacement Parts</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Replacement Parts</h3>
             <div className="space-y-3">
-              {replacementItems.map((item) => (
+              {replacementItems.filter(item => selectedItems.has(item.id)).map((item) => (
                 <div
                   key={item.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedItems.has(item.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => toggleItemSelection(item.id)}
+                  className="flex items-center justify-between p-4 rounded-lg border border-green-200 bg-green-50"
                 >
                   <div className="flex items-center">
-                    <div
-                      className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center ${
-                        selectedItems.has(item.id)
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300'
-                      }`}
-                    >
-                      {selectedItems.has(item.id) && (
-                        <Check className="h-3 w-3 text-white" />
-                      )}
+                    <div className="w-5 h-5 rounded border-2 border-green-500 bg-green-500 mr-3 flex items-center justify-center">
+                      <Check className="h-3 w-3 text-white" />
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">{item.label}</p>
                       {item.is_suggested && (
-                        <p className="text-sm text-blue-600">Recommended</p>
+                        <p className="text-sm text-green-600">Recommended</p>
                       )}
                     </div>
                   </div>
@@ -474,33 +529,19 @@ export default function PublicOrderPage() {
           </div>
         )}
 
-        {/* Add-ons Section */}
-        {addons.length > 0 && (
+        {/* Selected Add-on Services */}
+        {addons.filter(addon => selectedAddons.has(addon.id)).length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add-on Services</h3>
-            <p className="text-sm text-gray-600 mb-4">Select additional services to enhance your bike maintenance experience</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Add-on Services</h3>
             <div className="space-y-3">
-              {addons.map((addon) => (
+              {addons.filter(addon => selectedAddons.has(addon.id)).map((addon) => (
                 <div
                   key={addon.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedAddons.has(addon.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => toggleAddonSelection(addon.id)}
+                  className="flex items-center justify-between p-4 rounded-lg border border-green-200 bg-green-50"
                 >
                   <div className="flex items-center">
-                    <div
-                      className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center ${
-                        selectedAddons.has(addon.id)
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300'
-                      }`}
-                    >
-                      {selectedAddons.has(addon.id) && (
-                        <Check className="h-3 w-3 text-white" />
-                      )}
+                    <div className="w-5 h-5 rounded border-2 border-green-500 bg-green-500 mr-3 flex items-center justify-center">
+                      <Check className="h-3 w-3 text-white" />
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">{addon.name}</p>
@@ -580,7 +621,7 @@ export default function PublicOrderPage() {
             size="lg"
           >
             <Check className="h-5 w-5 mr-2" />
-            Confirm Your Order - {formatCurrency(totals.total)}
+            Confirm Complete Order - {formatCurrency(totals.total)}
           </Button>
 
           <Button
@@ -656,7 +697,7 @@ export default function PublicOrderPage() {
 
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>Review and confirm your order to proceed with the service</p>
+          <p>Step 3 of 3: Review and confirm your complete order</p>
           <p className="mt-1">Questions? Contact us on WhatsApp</p>
         </div>
       </div>

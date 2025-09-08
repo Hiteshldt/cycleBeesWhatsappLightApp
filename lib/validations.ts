@@ -7,8 +7,14 @@ export const requestSchema = z.object({
   customer_name: z.string().min(1, 'Customer name is required').max(200, 'Customer name too long'),
   phone_digits_intl: z.string()
     .regex(/^\d{10,15}$/, 'Phone number must be 10-15 digits without + or spaces')
+    .transform((phone) => {
+      // Auto-add 91 prefix for 10-digit Indian numbers
+      if (phone.length === 10 && !phone.startsWith('91')) {
+        return '91' + phone
+      }
+      return phone
+    })
     .refine((phone) => {
-      // Additional validation for Indian numbers (should start with 91)
       return phone.length >= 10
     }, 'Invalid phone number format'),
   status: z.enum(['draft', 'viewed', 'confirmed', 'cancelled']).default('draft'),

@@ -27,9 +27,14 @@ export default function AdminLogin() {
       })
 
       if (response.ok) {
-        // Store authentication in sessionStorage
+        // Store authentication in both sessionStorage and cookie
         sessionStorage.setItem('adminAuth', 'authenticated')
-        router.push('/admin')
+        document.cookie = 'adminAuth=authenticated; path=/; max-age=86400; SameSite=Strict'
+        console.log('Auth stored in both sessionStorage and cookie')
+        // Use window.location for more reliable redirect
+        setTimeout(() => {
+          window.location.href = '/admin'
+        }, 100)
       } else {
         const data = await response.json()
         setError(data.error || 'Login failed')
