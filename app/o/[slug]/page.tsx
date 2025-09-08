@@ -186,9 +186,10 @@ export default function PublicOrderPage() {
 
   const handleNeedHelp = () => {
     if (!orderData) return
-    
+    // Support contact number: +91 95973 12212
+    const supportNumberIntl = '919597312212'
     const message = `Hi, I need help with my service estimate for ${orderData.request.bike_name} (Order ${orderData.request.order_id}). Can you please assist me?`
-    const whatsappUrl = generateWhatsAppURL(orderData.request.phone_digits_intl, message)
+    const whatsappUrl = generateWhatsAppURL(supportNumberIntl, message)
     window.open(whatsappUrl, '_blank')
   }
 
@@ -212,6 +213,11 @@ export default function PublicOrderPage() {
       // Update local state
       setHasViewedEstimate(true)
       setShowConfirmation(false)
+      // Mark request as confirmed locally so UI updates without refresh
+      setOrderData(prev => prev ? ({
+        ...prev,
+        request: { ...prev.request, status: 'confirmed' }
+      }) : prev)
       
       // Store confirmed data for PDF download
       const totals = calculateTotal()
@@ -220,6 +226,9 @@ export default function PublicOrderPage() {
         selectedAddons: Array.from(selectedAddons),
         totals
       })
+      // Persist selections to sessionStorage for consistency
+      sessionStorage.setItem(`selectedItems_${slug}`, JSON.stringify(Array.from(selectedItems)))
+      sessionStorage.setItem(`selectedAddons_${slug}`, JSON.stringify(Array.from(selectedAddons)))
       
       // Show success message
       alert('Order confirmed successfully! You can now download your confirmed order PDF. Our team will contact you soon to schedule the service.')
@@ -253,6 +262,7 @@ export default function PublicOrderPage() {
 
     // Generate confirmed order PDF
     const billData = {
+
       order_id: orderData.request.order_id,
       customer_name: orderData.request.customer_name,
       bike_name: orderData.request.bike_name,
@@ -376,7 +386,7 @@ export default function PublicOrderPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">CycleBees</h1>
-              <p className="text-sm text-gray-600">Professional Bike Service</p>
+              <p className="text-sm text-gray-600">Professional Bicycle Service</p>
             </div>
             <Badge className="bg-blue-100 text-blue-800">
               Order #{request.order_id}

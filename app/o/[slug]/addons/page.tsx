@@ -118,9 +118,10 @@ export default function AddonsSelectionPage() {
 
   const handleNeedHelp = () => {
     if (!orderData) return
-    
+    // Support contact number: +91 95973 12212
+    const supportNumberIntl = '919597312212'
     const message = `Hi, I need help with my service estimate for ${orderData.request.bike_name} (Order ${orderData.request.order_id}). Can you please assist me?`
-    const whatsappUrl = `https://wa.me/${orderData.request.phone_digits_intl}?text=${encodeURIComponent(message)}`
+    const whatsappUrl = `https://wa.me/${supportNumberIntl}?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, '_blank')
   }
 
@@ -129,7 +130,7 @@ export default function AddonsSelectionPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading add-on services...</p>
+          <p className="mt-4 text-gray-600">Loading Add-on Services...</p>
         </div>
       </div>
     )
@@ -222,7 +223,7 @@ export default function AddonsSelectionPage() {
             ✨ Premium Add-on Services
           </h2>
           <p className="text-gray-600 mb-6">
-            Enhance your bike maintenance with our premium add-on services. All services are optional and can be customized to your needs.
+            Enhance your bike maintenance with our premium Add-on Services. All services are optional and can be customized to your needs.
           </p>
 
           {addons.length > 0 ? (
@@ -264,7 +265,7 @@ export default function AddonsSelectionPage() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-500">No add-on services available at the moment.</p>
+              <p className="text-gray-500">No Add-on Services available at the moment.</p>
             </div>
           )}
         </div>

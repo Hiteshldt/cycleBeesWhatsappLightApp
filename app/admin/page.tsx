@@ -90,36 +90,65 @@ export default function AdminDashboard() {
     }
 
     try {
-      // Get confirmed order details as HTML and generate PDF
-      const response = await fetch(`/api/requests/${request.id}/confirmed`)
-      if (response.ok) {
-        const confirmedData = await response.json()
-        
-        // Create bill data for PDF generation
-        const billData = {
-          order_id: request.order_id,
-          customer_name: request.customer_name,
-          bike_name: request.bike_name,
-          created_at: request.created_at,
-          confirmed_at: new Date().toISOString(),
-          items: [], // Will be filled from API
-          addons: [], // Will be filled from API
-          subtotal_paise: request.subtotal_paise || 0,
-          addons_paise: 0,
-          lacarte_paise: 9900,
-          total_paise: request.total_paise || 0,
-          status: 'confirmed',
-          isAdmin: true
-        }
-
-        // Import required functions
-        const { generateBillHTML, createBillDownload } = await import('@/lib/bill-generator')
-        const html = generateBillHTML(billData)
-        const filename = `Admin_Confirmed_Order_${request.order_id}.pdf`
-        createBillDownload(html, filename)
-      } else {
-        alert('Failed to download PDF. Please try again.')
+      // 1) Get confirmed selections (IDs)
+      const respConfirmed = await fetch(`/api/requests/${request.id}/confirmed`)
+      if (!respConfirmed.ok) {
+        alert('Failed to load confirmed selections.')
+        return
       }
+      const { selectedItems, selectedAddons } = await respConfirmed.json()
+
+      // 2) Load full request with items
+      const respRequest = await fetch(`/api/requests/${request.id}`)
+      if (!respRequest.ok) {
+        alert('Failed to load request details.')
+        return
+      }
+      const requestData = await respRequest.json()
+
+      // 3) Load addons (admin endpoint to include inactive if needed)
+      const respAddons = await fetch('/api/admin/addons')
+      const allAddons = respAddons.ok ? await respAddons.json() : []
+
+      // 4) Build selected items/addons arrays with full details
+      const selectedItemsDetails = (requestData.request_items || []).filter((it: any) => selectedItems.includes(it.id))
+      const selectedAddonsDetails = (allAddons || []).filter((ad: any) => selectedAddons.includes(ad.id))
+
+      // 5) Compute totals
+      const subtotal = selectedItemsDetails.reduce((sum: number, it: any) => sum + (it.price_paise || 0), 0)
+      const addonsTotal = selectedAddonsDetails.reduce((sum: number, ad: any) => sum + (ad.price_paise || 0), 0)
+      const laCarte = 9900
+      const total = subtotal + addonsTotal + laCarte
+
+      // 6) Create bill data with exact selections
+      const billData = {
+        order_id: request.order_id,
+        customer_name: request.customer_name,
+        bike_name: request.bike_name,
+        created_at: request.created_at,
+        confirmed_at: new Date().toISOString(),
+        items: selectedItemsDetails.map((it: any) => ({
+          section: it.section,
+          label: it.label,
+          price_paise: it.price_paise,
+        })),
+        addons: selectedAddonsDetails.map((ad: any) => ({
+          name: ad.name,
+          description: ad.description,
+          price_paise: ad.price_paise,
+        })),
+        subtotal_paise: subtotal,
+        addons_paise: addonsTotal,
+        lacarte_paise: laCarte,
+        total_paise: total,
+        status: 'confirmed',
+        isAdmin: true,
+      }
+
+      const { generateBillHTML, createBillDownload } = await import('@/lib/bill-generator')
+      const html = generateBillHTML(billData)
+      const filename = `Admin_Confirmed_Order_${request.order_id}.pdf`
+      createBillDownload(html, filename)
     } catch (error) {
       console.error('Error downloading PDF:', error)
       alert('Failed to download PDF. Please try again.')

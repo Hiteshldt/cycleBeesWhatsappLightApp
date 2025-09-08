@@ -254,7 +254,7 @@ export default function ServiceSelectionPage() {
         {/* Repair Services */}
         {repairItems.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-red-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">     Repair Services</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">🔧 Repair Services</h3>
             <div className="space-y-3">
               {repairItems.map((item) => (
                 <div
@@ -294,11 +294,10 @@ export default function ServiceSelectionPage() {
           </div>
         )}
 
-
         {/* Replacement Parts */}
         {replacementItems.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-purple-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Replacement Parts</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">🔩 Replacement Parts</h3>
             <div className="space-y-3">
               {replacementItems.map((item) => (
                 <div
@@ -338,31 +337,7 @@ export default function ServiceSelectionPage() {
           </div>
         )}
 
-        
-{/* La Carte Services (Fixed) */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-yellow-300">
-          <div className="flex items-start justify-between">
-            <div className="pr-4">
-              <div className="flex items-center mb-1">
-                <div className="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center mr-2">
-                  {/* Always included */}
-                  <Check className="h-3 w-3" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">La Carte Service (Fixed Charges   Free Services Included below)</h3>
-              </div>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                General service & inspection report, full cleaning, tyre puncture check, air filling, oiling & lubrication,
-                fittings & fixtures labour, tightening of loose parts, and pick & drop or full service at your doorstep.
-              </p>
-            </div>
-            <div className="text-right whitespace-nowrap text-lg font-semibold text-gray-900">
-              {formatCurrency(9900)}
-            </div>
-          </div>
-        </div>
-
-        
-{/* Services Total */}
+        {/* Services Total */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Services Summary</h3>
           <div className="space-y-2">
@@ -416,6 +391,4 @@ export default function ServiceSelectionPage() {
     </div>
   )
 }
-
-
 
