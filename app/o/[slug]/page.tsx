@@ -87,31 +87,68 @@ export default function PublicOrderPage() {
             const confirmedData = await confirmedResponse.json()
             setSelectedItems(new Set(confirmedData.selectedItems))
             setSelectedAddons(new Set(confirmedData.selectedAddons))
+            
+            // Calculate totals directly from confirmed data (not from state which hasn't updated yet)
+            const confirmedItems = data.items.filter((item: RequestItem & { selected?: boolean }) => 
+              confirmedData.selectedItems.includes(item.id)
+            )
+            
+            // We need to fetch addons to calculate addon totals
+            let addonsTotal = 0
+            if (confirmedData.selectedAddons.length > 0) {
+              try {
+                const addonsResponse = await fetch('/api/addons')
+                if (addonsResponse.ok) {
+                  const addonsData = await addonsResponse.json()
+                  const confirmedAddons = addonsData.filter((addon: Addon) =>
+                    confirmedData.selectedAddons.includes(addon.id)
+                  )
+                  addonsTotal = confirmedAddons.reduce((sum: number, addon: Addon) => sum + addon.price_paise, 0)
+                }
+              } catch (error) {
+                console.error('Error fetching addons for total calculation:', error)
+              }
+            }
+            
+            const subtotal = confirmedItems.reduce((sum: number, item: RequestItem & { selected?: boolean }) => sum + item.price_paise, 0)
+            const laCarteCharge = 9900
+            const total = subtotal + addonsTotal + laCarteCharge
+            
             setConfirmedData({
               selectedItems: confirmedData.selectedItems,
               selectedAddons: confirmedData.selectedAddons,
-              totals: calculateTotal()
+              totals: { subtotal, addonsTotal, laCarteCharge, total }
             })
           }
         } catch (error) {
           console.error('Error loading confirmed selections:', error)
         }
       } else {
-        // For non-confirmed orders, pre-select suggested items
-        const suggestedItemIds = new Set<string>(
-          data.items.filter((item: RequestItem) => item.is_suggested).map((item: RequestItem) => item.id)
-        )
-        setSelectedItems(suggestedItemIds)
+        // For non-confirmed orders, only pre-select suggested items if no selections exist in sessionStorage
+        const savedItems = sessionStorage.getItem(`selectedItems_${slug}`)
+        if (!savedItems) {
+          // No saved selections, use suggested items
+          const suggestedItemIds = new Set<string>(
+            data.items.filter((item: RequestItem) => item.is_suggested).map((item: RequestItem) => item.id)
+          )
+          setSelectedItems(suggestedItemIds)
+        }
       }
 
       // Mark as viewed if status is still draft
       if (data.request.status === 'draft') {
         try {
+          // Use saved selections or default to suggested items for marking as viewed
+          const savedItems = sessionStorage.getItem(`selectedItems_${slug}`)
+          const itemsToMark = savedItems 
+            ? JSON.parse(savedItems)
+            : data.items.filter((item: RequestItem) => item.is_suggested).map((item: RequestItem) => item.id)
+          
           await fetch(`/api/public/orders/${slug}/view`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              selected_items: data.items.filter((item: RequestItem) => item.is_suggested).map((item: RequestItem) => item.id),
+              selected_items: itemsToMark,
               status: 'viewed'
             }),
           })

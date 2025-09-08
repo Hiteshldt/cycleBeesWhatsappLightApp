@@ -61,23 +61,23 @@ export function generateWhatsAppMessage(
 Hello *${firstName}*! 👋
 
 Your service estimate is ready for:
-🚲 *Bike:* ${bikeName}
-📝 *Order ID:* ${orderId}
+*Bike:* ${bikeName}
+*Order ID:* ${orderId}
 
-✅ *Next Steps:*
+*Next Steps:*
 1. Click the link below to view your estimate
 2. Select your preferred services & add-ons
 3. Confirm your order for doorstep service
 
-🔗 *View Your Estimate:* ${orderUrl}
+*View Your Estimate:* ${orderUrl}
 
-📞 *Need Help?*
+*Need Help?*
 Our support team is here to assist you!
 
-🌐 *Visit us:* www.cyclebees.in
+*Visit us:* www.cyclebees.in
 For premium doorstep cycle repair services
 
-*CycleBees* - Your bike, our care! 💛`
+*CycleBees* - Your bike, our care! `
 }
 
 // Format date for display
