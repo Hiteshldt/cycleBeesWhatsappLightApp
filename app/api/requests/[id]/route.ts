@@ -57,7 +57,7 @@ export async function PATCH(
     
     // Only allow certain fields to be updated
     const allowedFields = ['status']
-    const updateData: any = {}
+    const updateData: Record<string, unknown> = {}
     
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
@@ -74,8 +74,8 @@ export async function PATCH(
 
     // Validate status if provided
     if (updateData.status) {
-      const validStatuses = ['draft', 'sent', 'viewed', 'cancelled']
-      if (!validStatuses.includes(updateData.status)) {
+      const validStatuses = ['draft', 'viewed', 'confirmed', 'cancelled']
+      if (!validStatuses.includes(updateData.status as string)) {
         return NextResponse.json(
           { error: 'Invalid status value' },
           { status: 400 }

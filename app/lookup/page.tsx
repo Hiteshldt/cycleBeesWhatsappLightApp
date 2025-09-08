@@ -61,11 +61,11 @@ export default function RequestLookup() {
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <div className="text-center mb-8">
-            <h2 className="text-xl font-bold text-gray-900">Find Your Service Request</h2>
-            <p className="text-gray-600 mt-2">Enter your Order ID to view and download your service details</p>
+      <div className="max-w-md mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="text-center mb-6">
+            <h2 className="text-lg font-bold text-gray-900">Find Your Service Request</h2>
+            <p className="text-sm text-gray-600 mt-2">Enter your Order ID to view service details</p>
           </div>
 
           {error && (
@@ -87,7 +87,7 @@ export default function RequestLookup() {
                 className="text-center font-mono"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Your Order ID starts with "CB" followed by date and time
+                Your Order ID starts with &quot;CB&quot; followed by date and time
               </p>
             </div>
 
@@ -120,9 +120,9 @@ export default function RequestLookup() {
             </Button>
           </form>
 
-          <div className="mt-8 text-center text-sm text-gray-500">
-            <p>Can't find your Order ID?</p>
-            <p className="mt-1">Check your WhatsApp messages or contact us for help</p>
+          <div className="mt-6 text-center text-xs text-gray-500">
+            <p>Can&apos;t find your Order ID?</p>
+            <p className="mt-1">Check WhatsApp or contact us</p>
           </div>
         </div>
       </div>

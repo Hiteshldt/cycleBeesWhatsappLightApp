@@ -17,10 +17,6 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  useEffect(() => {
-    fetchRequests()
-  }, [statusFilter])
-
   const fetchRequests = async () => {
     try {
       const url = statusFilter === 'all' 
@@ -46,6 +42,10 @@ export default function AdminDashboard() {
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchRequests()
+  }, [statusFilter])
 
   const handleResendWhatsApp = async (request: Request) => {
     const orderUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/o/${request.short_slug}`
@@ -111,12 +111,12 @@ export default function AdminDashboard() {
       const allAddons = respAddons.ok ? await respAddons.json() : []
 
       // 4) Build selected items/addons arrays with full details
-      const selectedItemsDetails = (requestData.request_items || []).filter((it: any) => selectedItems.includes(it.id))
-      const selectedAddonsDetails = (allAddons || []).filter((ad: any) => selectedAddons.includes(ad.id))
+      const selectedItemsDetails = (requestData.request_items || []).filter((it: { id: string; price_paise: number; section: string; label: string }) => selectedItems.includes(it.id))
+      const selectedAddonsDetails = (allAddons || []).filter((ad: { id: string; name: string; description: string; price_paise: number }) => selectedAddons.includes(ad.id))
 
       // 5) Compute totals
-      const subtotal = selectedItemsDetails.reduce((sum: number, it: any) => sum + (it.price_paise || 0), 0)
-      const addonsTotal = selectedAddonsDetails.reduce((sum: number, ad: any) => sum + (ad.price_paise || 0), 0)
+      const subtotal = selectedItemsDetails.reduce((sum: number, it: { price_paise: number }) => sum + (it.price_paise || 0), 0)
+      const addonsTotal = selectedAddonsDetails.reduce((sum: number, ad: { price_paise: number }) => sum + (ad.price_paise || 0), 0)
       const laCarte = 9900
       const total = subtotal + addonsTotal + laCarte
 
@@ -127,12 +127,12 @@ export default function AdminDashboard() {
         bike_name: request.bike_name,
         created_at: request.created_at,
         confirmed_at: new Date().toISOString(),
-        items: selectedItemsDetails.map((it: any) => ({
+        items: selectedItemsDetails.map((it: { section: string; label: string; price_paise: number }) => ({
           section: it.section,
           label: it.label,
           price_paise: it.price_paise,
         })),
-        addons: selectedAddonsDetails.map((ad: any) => ({
+        addons: selectedAddonsDetails.map((ad: { name: string; description: string; price_paise: number }) => ({
           name: ad.name,
           description: ad.description,
           price_paise: ad.price_paise,

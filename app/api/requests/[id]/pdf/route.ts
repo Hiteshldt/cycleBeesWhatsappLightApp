@@ -62,8 +62,8 @@ export async function GET(
     }
 
     // Process the data
-    const confirmedItems = confirmedServices?.map(cs => cs.request_items).filter(Boolean) || []
-    const confirmedAddonsList = confirmedAddons?.map(ca => ca.addons).filter(Boolean) || []
+    const confirmedItems = confirmedServices?.map(cs => cs.request_items).filter(Boolean).flat() || []
+    const confirmedAddonsList = confirmedAddons?.map(ca => ca.addons).filter(Boolean).flat() || []
 
     // Calculate totals
     const subtotal = confirmedItems.reduce((sum, item) => sum + (item?.price_paise || 0), 0)

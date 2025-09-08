@@ -65,7 +65,7 @@ export async function POST(
 
     // Calculate total for selected items
     const selectedItems = orderData.request_items || []
-    const subtotalPaise = selectedItems.reduce((sum: number, item: any) => sum + item.price_paise, 0)
+    const subtotalPaise = selectedItems.reduce((sum: number, item: { price_paise: number }) => sum + item.price_paise, 0)
     
     // Calculate add-ons total if add-ons are selected
     let addonsTotal = 0

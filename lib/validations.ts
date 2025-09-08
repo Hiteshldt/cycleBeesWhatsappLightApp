@@ -17,7 +17,7 @@ export const requestSchema = z.object({
     .refine((phone) => {
       return phone.length >= 10
     }, 'Invalid phone number format'),
-  status: z.enum(['draft', 'viewed', 'confirmed', 'cancelled']).default('draft'),
+  status: z.enum(['draft', 'viewed', 'confirmed', 'cancelled']),
 })
 
 // Request item validation schema
@@ -28,7 +28,7 @@ export const requestItemSchema = z.object({
     .int('Price must be a whole number')
     .min(1, 'Price must be greater than 0')
     .max(10000000, 'Price too high'), // Max ₹1,00,000
-  is_suggested: z.boolean().default(true),
+  is_suggested: z.boolean(),
 })
 
 // Complete request with items schema

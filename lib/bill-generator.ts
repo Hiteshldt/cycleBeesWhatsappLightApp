@@ -406,7 +406,7 @@ export function createBillDownload(html: string, filename: string) {
       html2pdf.default().set(opt).from(element).save().then(() => {
         // Clean up
         document.body.removeChild(tempDiv)
-      }).catch((error: any) => {
+      }).catch((error: unknown) => {
         console.error('PDF generation error:', error)
         // Fallback to HTML download
         createHtmlDownload(html, filename.replace('.pdf', '.html'))

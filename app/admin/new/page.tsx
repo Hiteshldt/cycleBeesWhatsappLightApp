@@ -12,8 +12,8 @@ import { Trash2, Plus, Send, Save } from 'lucide-react'
 
 export default function NewRequestPage() {
   const [isLoading, setIsLoading] = useState(false)
-  const [requestId, setRequestId] = useState<string | null>(null)
   const [shortSlug, setShortSlug] = useState<string | null>(null)
+  const [requestId, setRequestId] = useState<string | null>(null)
 
   const {
     register,

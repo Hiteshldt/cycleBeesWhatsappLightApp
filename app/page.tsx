@@ -17,16 +17,16 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-2 gap-8">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="grid md:grid-cols-2 gap-6">
           {/* Customer Access */}
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="h-8 w-8 text-blue-600" />
+          <div className="bg-white rounded-lg shadow-md p-6 text-center">
+            <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Search className="h-6 w-6 text-blue-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Find Your Service Request</h2>
-            <p className="text-gray-600 mb-6">
-              Enter your Order ID and phone number to view service details, select add-ons, and track your order status.
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Find Your Service Request</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Enter Order ID and phone to view details, select add-ons, and track status.
             </p>
             <Link href="/lookup">
               <Button className="w-full">
@@ -37,13 +37,13 @@ export default function HomePage() {
           </div>
 
           {/* Admin Access */}
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Settings className="h-8 w-8 text-green-600" />
+          <div className="bg-white rounded-lg shadow-md p-6 text-center">
+            <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Settings className="h-6 w-6 text-green-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Admin Dashboard</h2>
-            <p className="text-gray-600 mb-6">
-              Access the admin panel to create service requests, manage orders, and download service PDFs.
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Admin Dashboard</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Access admin panel to create requests, manage orders, and download PDFs.
             </p>
             <Link href="/admin">
               <Button className="w-full bg-green-600 hover:bg-green-700">

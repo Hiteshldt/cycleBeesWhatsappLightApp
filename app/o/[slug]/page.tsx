@@ -5,13 +5,24 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Request, RequestItem, Addon } from '@/lib/supabase'
-import { formatCurrency, generateWhatsAppURL, generateWhatsAppMessage, generateUPIPaymentURL, formatDate } from '@/lib/utils'
-import { generateBillHTML, generateBillFilename, createBillDownload } from '@/lib/bill-generator'
-import { Check, MessageCircle, AlertCircle, Download, Receipt, CreditCard } from 'lucide-react'
+import { formatCurrency, generateWhatsAppURL, formatDate } from '@/lib/utils'
+import { generateBillHTML, createBillDownload } from '@/lib/bill-generator'
+import { Check, MessageCircle, AlertCircle, Download } from 'lucide-react'
 
 type OrderData = {
   request: Request
   items: (RequestItem & { selected?: boolean })[]
+}
+
+type ConfirmedData = {
+  selectedItems: string[]
+  selectedAddons: string[]
+  totals: {
+    subtotal: number
+    addonsTotal: number
+    laCarteCharge: number
+    total: number
+  }
 }
 
 export default function PublicOrderPage() {
@@ -28,7 +39,7 @@ export default function PublicOrderPage() {
   const [hasViewedEstimate, setHasViewedEstimate] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
-  const [confirmedData, setConfirmedData] = useState<any>(null)
+  const [confirmedData, setConfirmedData] = useState<ConfirmedData | null>(null)
 
   useEffect(() => {
     if (slug) {
@@ -155,7 +166,7 @@ export default function PublicOrderPage() {
   }
 
   const calculateTotal = () => {
-    if (!orderData) return { subtotal: 0, addonsTotal: 0, total: 0 }
+    if (!orderData) return { subtotal: 0, addonsTotal: 0, laCarteCharge: 0, total: 0 }
 
     const subtotal = orderData.items
       .filter(item => selectedItems.has(item.id))
@@ -170,7 +181,7 @@ export default function PublicOrderPage() {
     const laCarteCharge = 9900 // ₹99 in paise
     const total = subtotal + addonsTotal + laCarteCharge
 
-    return { subtotal, addonsTotal, total }
+    return { subtotal, addonsTotal, laCarteCharge, total }
   }
 
   const handleConfirmOrder = () => {
@@ -269,7 +280,11 @@ export default function PublicOrderPage() {
       created_at: orderData.request.created_at,
       confirmed_at: new Date().toISOString(),
       items: confirmedItems,
-      addons: confirmedAddons,
+      addons: confirmedAddons.map(addon => ({
+        name: addon.name,
+        description: addon.description ?? undefined,
+        price_paise: addon.price_paise
+      })),
       subtotal_paise: subtotal,
       addons_paise: addonsTotal,
       lacarte_paise: laCarteCharge,
@@ -346,31 +361,31 @@ export default function PublicOrderPage() {
   // Check if order is already confirmed
   if (request.status === 'confirmed') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center max-w-md">
-          <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="h-8 w-8 text-green-600" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-lg shadow-md text-center w-full max-w-md">
+          <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Check className="h-6 w-6 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
-          <p className="text-gray-600 mb-4">
-            Your service request for {request.bike_name} has been confirmed. 
-            Our team will contact you soon to schedule the service.
+          <h1 className="text-lg font-bold text-gray-900 mb-2">Order Confirmed!</h1>
+          <p className="text-sm text-gray-600 mb-4">
+            Service request for {request.bike_name} confirmed. 
+            We&apos;ll contact you soon!
           </p>
-          <div className="bg-gray-50 p-4 rounded-lg mb-4">
-            <p className="text-sm text-gray-700">Order ID: <strong>{request.order_id}</strong></p>
+          <div className="bg-gray-50 p-3 rounded-lg mb-4">
+            <p className="text-xs text-gray-700">Order ID: <strong className="text-sm">#{request.order_id.replace('CB', '')}</strong></p>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-2">
             <Button 
               onClick={handleDownloadConfirmedPDF} 
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-sm"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download Confirmed Order PDF
+              Download PDF
             </Button>
-            <Button onClick={handleNeedHelp} variant="outline" className="flex-1">
+            <Button onClick={handleNeedHelp} variant="outline" className="w-full text-sm">
               <MessageCircle className="h-4 w-4 mr-2" />
-              Contact Us
+              Need Help?
             </Button>
           </div>
         </div>
@@ -382,59 +397,59 @@ export default function PublicOrderPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">CycleBees</h1>
-              <p className="text-sm text-gray-600">Professional Bicycle Service</p>
+              <h1 className="text-xl font-bold text-gray-900">CycleBees</h1>
+              <p className="text-xs text-gray-600">Professional Bicycle Service</p>
             </div>
-            <Badge className="bg-blue-100 text-blue-800">
-              Order #{request.order_id}
+            <Badge className="bg-blue-100 text-blue-800 text-xs">
+              #{request.order_id.replace('CB', '')}
             </Badge>
           </div>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6">
-        {/* Progress Indicator */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center">
-            <div className="flex items-center text-green-600">
-              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+        {/* Progress Indicator - Mobile Optimized */}
+        <div className="flex justify-center mb-6">
+          <div className="flex items-center max-w-full overflow-x-auto">
+            <div className="flex items-center text-green-600 whitespace-nowrap">
+              <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                 ✓
               </div>
-              <span className="ml-2 font-medium">Services Selected</span>
+              <span className="ml-1 text-xs font-medium hidden sm:inline">Services</span>
             </div>
-            <div className="mx-4 w-16 h-1 bg-green-600 rounded"></div>
-            <div className="flex items-center text-green-600">
-              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            <div className="mx-2 w-8 h-1 bg-green-600 rounded flex-shrink-0"></div>
+            <div className="flex items-center text-green-600 whitespace-nowrap">
+              <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                 ✓
               </div>
-              <span className="ml-2 font-medium">Add-ons Selected</span>
+              <span className="ml-1 text-xs font-medium hidden sm:inline">Add-ons</span>
             </div>
-            <div className="mx-4 w-16 h-1 bg-blue-600 rounded"></div>
-            <div className="flex items-center text-blue-600">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+            <div className="mx-2 w-8 h-1 bg-blue-600 rounded flex-shrink-0"></div>
+            <div className="flex items-center text-blue-600 whitespace-nowrap">
+              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                 3
               </div>
-              <span className="ml-2 font-medium">Confirm Order</span>
+              <span className="ml-1 text-xs font-medium hidden sm:inline">Confirm</span>
             </div>
           </div>
         </div>
 
-        {/* Edit Options */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-between">
+        {/* Edit Options - Mobile Optimized */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="font-medium text-blue-900">Ready to confirm your order?</h3>
-              <p className="text-sm text-blue-700 mt-1">Review your selections below or make changes before confirming</p>
+              <h3 className="font-medium text-blue-900 text-sm">Ready to confirm?</h3>
+              <p className="text-xs text-blue-700 mt-1">Review selections or make changes</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => router.push(`/o/${slug}/services`)}
-                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 flex-1 sm:flex-none text-xs"
               >
                 Edit Services
               </Button>
@@ -442,7 +457,7 @@ export default function PublicOrderPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => router.push(`/o/${slug}/addons`)}
-                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 flex-1 sm:flex-none text-xs"
               >
                 Edit Add-ons
               </Button>
@@ -450,57 +465,53 @@ export default function PublicOrderPage() {
           </div>
         </div>
 
-        {/* Order Summary */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Service Estimate for {request.bike_name}
+        {/* Order Summary - Mobile Optimized */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+          <h2 className="text-base font-semibold text-gray-900 mb-3">
+            Estimate: {request.bike_name}
           </h2>
-          <p className="text-gray-600 mb-4">
-            Review your selected services and add-ons. Confirm your order to proceed with the service booking.
+          <p className="text-sm text-gray-600 mb-3">
+            Review selections before confirming
           </p>
           
-          <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg">
             <div>
-              <p className="text-sm text-gray-600">Customer</p>
-              <p className="font-medium">{request.customer_name}</p>
+              <p className="text-xs text-gray-600">Customer</p>
+              <p className="text-sm font-medium">{request.customer_name}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Bike</p>
-              <p className="font-medium">{request.bike_name}</p>
+              <p className="text-xs text-gray-600">Bike</p>
+              <p className="text-sm font-medium">{request.bike_name}</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Request Created</p>
-              <p className="font-medium">{formatDate(request.created_at)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Sent to You</p>
-              <p className="font-medium">{request.sent_at ? formatDate(request.sent_at) : 'Not sent yet'}</p>
+            <div className="sm:col-span-2">
+              <p className="text-xs text-gray-600">Created</p>
+              <p className="text-sm font-medium">{formatDate(request.created_at)}</p>
             </div>
           </div>
         </div>
 
         {/* Selected Repair Services */}
         {repairItems.filter(item => selectedItems.has(item.id)).length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Repair Services</h3>
-            <div className="space-y-3">
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Repair Services</h3>
+            <div className="space-y-2">
               {repairItems.filter(item => selectedItems.has(item.id)).map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-green-200 bg-green-50"
+                  className="flex items-center justify-between p-3 rounded-lg border border-green-200 bg-green-50"
                 >
-                  <div className="flex items-center">
-                    <div className="w-5 h-5 rounded border-2 border-green-500 bg-green-500 mr-3 flex items-center justify-center">
-                      <Check className="h-3 w-3 text-white" />
+                  <div className="flex items-center flex-1 min-w-0">
+                    <div className="w-4 h-4 rounded border-2 border-green-500 bg-green-500 mr-2 flex items-center justify-center flex-shrink-0">
+                      <Check className="h-2 w-2 text-white" />
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{item.label}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.label}</p>
                       {item.is_suggested && (
-                        <p className="text-sm text-green-600">Recommended</p>
+                        <p className="text-xs text-green-600">Recommended</p>
                       )}
                     </div>
                   </div>
-                  <div className="text-lg font-semibold text-gray-900">
+                  <div className="text-sm font-semibold text-gray-900 ml-2 flex-shrink-0">
                     {formatCurrency(item.price_paise)}
                   </div>
                 </div>

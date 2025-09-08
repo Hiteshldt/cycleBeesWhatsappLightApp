@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Request, RequestItem, Addon } from '@/lib/supabase'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { Check, MessageCircle, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react'
 
 type OrderData = {
@@ -24,14 +24,6 @@ export default function AddonsSelectionPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set())
-
-  useEffect(() => {
-    if (slug) {
-      fetchOrderData()
-      fetchAddons()
-      loadSelectedItems()
-    }
-  }, [slug])
 
   const loadSelectedItems = () => {
     // Load selected items from session storage
@@ -77,6 +69,14 @@ export default function AddonsSelectionPage() {
       console.error('Error fetching addons:', error)
     }
   }
+
+  useEffect(() => {
+    if (slug) {
+      fetchOrderData()
+      fetchAddons()
+      loadSelectedItems()
+    }
+  }, [slug])
 
   const toggleAddonSelection = (addonId: string) => {
     const newSelected = new Set(selectedAddons)

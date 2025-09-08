@@ -69,8 +69,7 @@ Your service estimate is ready for:
 2. Select your preferred services & add-ons
 3. Confirm your order for doorstep service
 
-🔗 *View Your Estimate:*
-${orderUrl}
+🔗 *View Your Estimate:* ${orderUrl}
 
 📞 *Need Help?*
 Our support team is here to assist you!

@@ -145,7 +145,7 @@ export default function AddonManagement() {
           <h1 className="text-2xl font-bold text-gray-900">Add-on Services Management</h1>
           <p className="text-gray-600">Manage add-on services for customer requests</p>
         </div>
-        <Button onClick={() => setShowAddForm(true)} disabled={showAddForm || editingAddon}>
+        <Button onClick={() => setShowAddForm(true)} disabled={showAddForm || !!editingAddon}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Add-on
         </Button>
@@ -272,7 +272,7 @@ export default function AddonManagement() {
                           size="sm"
                           variant="outline"
                           onClick={() => startEdit(addon)}
-                          disabled={editingAddon !== null || showAddForm}
+                          disabled={!!editingAddon || showAddForm}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
