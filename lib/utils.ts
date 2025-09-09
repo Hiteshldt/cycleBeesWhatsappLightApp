@@ -42,9 +42,49 @@ export function formatPhoneNumber(phone: string): string {
 }
 
 // Generate WhatsApp click-to-chat URL
+export function normalizeIntlPhone(phone: string): string {
+  const digits = (phone || '').replace(/\D/g, '')
+  if (digits.length === 10) return `91${digits}`
+  return digits
+}
+
 export function generateWhatsAppURL(phone: string, message: string): string {
+  const normalized = normalizeIntlPhone(phone)
   const encodedMessage = encodeURIComponent(message)
-  return `https://wa.me/${phone}?text=${encodedMessage}`
+  // Force WhatsApp Web to avoid opening the desktop/mobile app
+  return `https://web.whatsapp.com/send?phone=${normalized}&text=${encodedMessage}`
+}
+
+export function generateWhatsAppDeepLink(phone: string, message: string): string {
+  const normalized = normalizeIntlPhone(phone)
+  const encodedMessage = encodeURIComponent(message)
+  return `whatsapp://send?phone=${normalized}&text=${encodedMessage}`
+}
+
+// Tries app deep link first (mobile), then falls back to wa.me (web). Helps when app ignores text via wa.me
+export function openWhatsApp(phone: string, message: string) {
+  const webUrl = generateWhatsAppURL(phone, message)
+  // Try to reuse an existing named tab first to avoid opening a new tab each time
+  let win: Window | null = null
+  try {
+    win = window.open('', 'whatsapp_web')
+  } catch {}
+
+  if (win) {
+    try {
+      win.location.href = webUrl
+      if (typeof win.focus === 'function') win.focus()
+      return
+    } catch {
+      // If we can't navigate existing window (browser restriction), fallback to opening a new/reused named window with URL
+    }
+  }
+
+  // Open or create the named tab
+  const created = window.open(webUrl, 'whatsapp_web')
+  if (created && typeof created.focus === 'function') {
+    try { created.focus() } catch {}
+  }
 }
 
 // Generate WhatsApp message template

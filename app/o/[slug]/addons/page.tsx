@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Request, RequestItem, Addon, ServiceBundle } from '@/lib/supabase'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, openWhatsApp } from '@/lib/utils'
 import { Check, MessageCircle, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react'
 import { getLaCarteSettings, type LaCarteSettings } from '@/lib/lacarte'
 
@@ -166,8 +166,7 @@ export default function AddonsSelectionPage() {
     // Support contact number: +91 95973 12212
     const supportNumberIntl = '919597312212'
     const message = `Hi, I need help with my service estimate for ${orderData.request.bike_name} (Order ${orderData.request.order_id}). Can you please assist me?`
-    const whatsappUrl = `https://wa.me/${supportNumberIntl}?text=${encodeURIComponent(message)}`
-    window.open(whatsappUrl, '_blank')
+    openWhatsApp(supportNumberIntl, message)
   }
 
   if (isLoading) {

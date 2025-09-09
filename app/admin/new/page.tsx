@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createRequestSchema, type CreateRequestData } from '@/lib/validations'
-import { formatCurrency, rupeesToPaise, generateWhatsAppURL, generateWhatsAppMessage, generateOrderID } from '@/lib/utils'
+import { formatCurrency, rupeesToPaise, openWhatsApp, generateWhatsAppMessage, generateOrderID } from '@/lib/utils'
 import { Trash2, Plus, Send, Save } from 'lucide-react'
 
 export default function NewRequestPage() {
@@ -106,11 +106,8 @@ export default function NewRequestPage() {
     
     const orderUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/o/${shortSlug}`
     const message = generateWhatsAppMessage(customerName, bikeName, orderId, orderUrl)
-    const whatsappUrl = generateWhatsAppURL(phone, message)
-    
-    // Status remains 'sent' after sending - will be updated to 'viewed' when customer clicks
-    
-    window.open(whatsappUrl, '_blank')
+    // Open WhatsApp (app deep link first, then web fallback)
+    openWhatsApp(phone, message)
   }
 
   return (

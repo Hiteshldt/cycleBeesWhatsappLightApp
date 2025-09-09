@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Request, RequestItem } from '@/lib/supabase'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, openWhatsApp } from '@/lib/utils'
 import { Check, MessageCircle, AlertCircle, ArrowRight } from 'lucide-react'
 import { getLaCarteSettings, type LaCarteSettings } from '@/lib/lacarte'
 
@@ -133,8 +133,7 @@ export default function ServiceSelectionPage() {
     // Support contact number: +91 95973 12212 (international digits only for wa.me)
     const supportNumberIntl = '919597312212'
     const message = `Hi, I need help with my service estimate for ${orderData.request.bike_name} (Order ${orderData.request.order_id}). Can you please assist me?`
-    const whatsappUrl = `https://wa.me/${supportNumberIntl}?text=${encodeURIComponent(message)}`
-    window.open(whatsappUrl, '_blank')
+    openWhatsApp(supportNumberIntl, message)
   }
 
   if (isLoading) {
@@ -461,5 +460,4 @@ export default function ServiceSelectionPage() {
     </div>
   )
 }
-
 

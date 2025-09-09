@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Request } from '@/lib/supabase'
-import { formatCurrency, formatDate, getStatusColor, generateWhatsAppURL, generateWhatsAppMessage } from '@/lib/utils'
+import { formatCurrency, formatDate, getStatusColor, openWhatsApp, generateWhatsAppMessage } from '@/lib/utils'
 import { NotificationManager, StatusChangeDetector } from '@/lib/notification'
 import { Modal } from '@/components/ui/modal'
 import { BillPreview } from '@/components/BillPreview'
@@ -178,12 +178,8 @@ export default function AdminDashboard() {
       request.order_id,
       orderUrl
     )
-    const whatsappUrl = generateWhatsAppURL(request.phone_digits_intl, message)
-    
-    // Update status to 'sent' (no status change needed for WhatsApp send)
-    // The status will be updated to 'viewed' when customer clicks the link
-    
-    window.open(whatsappUrl, '_blank')
+    // Open WhatsApp (deep link first, web fallback)
+    openWhatsApp(request.phone_digits_intl, message)
   }
 
   const copyOrderLink = (shortSlug: string) => {
