@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { customerOrderSchema } from '@/lib/validations'
+import { getLaCartePrice } from '@/lib/lacarte'
 
 // POST /api/public/orders/[slug]/view - Mark order as viewed and update status
 export async function POST(
@@ -23,7 +24,7 @@ export async function POST(
       )
     }
 
-    const { selected_items, selected_addons, status } = validationResult.data
+    const { selected_items, selected_addons, selected_bundles, status } = validationResult.data
 
     // Get order details
     const { data: orderData, error: orderError } = await supabase
@@ -78,8 +79,19 @@ export async function POST(
       addonsTotal = addonsData?.reduce((sum, addon) => sum + addon.price_paise, 0) || 0
     }
     
-    const laCartePaise = 9900 // Fixed ₹99 charge
-    const totalPaise = subtotalPaise + addonsTotal + laCartePaise
+    // Calculate bundles total if bundles are selected
+    let bundlesTotal = 0
+    if (selected_bundles && selected_bundles.length > 0) {
+      const { data: bundlesData } = await supabase
+        .from('service_bundles')
+        .select('price_paise')
+        .in('id', selected_bundles)
+      
+      bundlesTotal = bundlesData?.reduce((sum, bundle) => sum + bundle.price_paise, 0) || 0
+    }
+    
+    const laCartePaise = await getLaCartePrice()
+    const totalPaise = subtotalPaise + addonsTotal + bundlesTotal + laCartePaise
 
     // Determine the status to update to
     const newStatus = status || 'viewed'
@@ -100,11 +112,12 @@ export async function POST(
       // Don't fail the request if we can't update status
     }
 
-    // If confirming the order, store the selected items and addons
+    // If confirming the order, store the selected items, addons, and bundles
     if (newStatus === 'confirmed') {
       // Clear any previous selections for this request
       await supabase.from('confirmed_order_services').delete().eq('request_id', orderData.id)
       await supabase.from('confirmed_order_addons').delete().eq('request_id', orderData.id)
+      await supabase.from('confirmed_order_bundles').delete().eq('request_id', orderData.id)
 
       // Store selected service items
       if (selected_items && selected_items.length > 0) {
@@ -135,6 +148,22 @@ export async function POST(
 
         if (addonsError) {
           console.error('Error storing selected addons:', addonsError)
+        }
+      }
+
+      // Store selected bundles
+      if (selected_bundles && selected_bundles.length > 0) {
+        const bundleSelections = selected_bundles.map(bundleId => ({
+          request_id: orderData.id,
+          bundle_id: bundleId
+        }))
+
+        const { error: bundlesError } = await supabase
+          .from('confirmed_order_bundles')
+          .insert(bundleSelections)
+
+        if (bundlesError) {
+          console.error('Error storing selected bundles:', bundlesError)
         }
       }
     }

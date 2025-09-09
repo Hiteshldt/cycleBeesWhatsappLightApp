@@ -9,7 +9,7 @@ CREATE TABLE requests (
     bike_name VARCHAR(200) NOT NULL,
     customer_name VARCHAR(200) NOT NULL,
     phone_digits_intl VARCHAR(20) NOT NULL, -- No "+" prefix, international format
-    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'viewed', 'confirmed', 'cancelled')),
+    status VARCHAR(20) DEFAULT 'sent' CHECK (status IN ('sent', 'viewed', 'confirmed', 'cancelled')),
     subtotal_paise INTEGER DEFAULT 0,
     tax_paise INTEGER DEFAULT 0,
     total_paise INTEGER DEFAULT 0,

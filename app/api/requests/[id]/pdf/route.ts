@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generateBillHTML } from '@/lib/bill-generator'
+import { getLaCartePrice } from '@/lib/lacarte'
 
 export async function GET(
   request: NextRequest,
@@ -68,7 +69,7 @@ export async function GET(
     // Calculate totals
     const subtotal = confirmedItems.reduce((sum, item) => sum + (item?.price_paise || 0), 0)
     const addonsTotal = confirmedAddonsList.reduce((sum, addon) => sum + (addon?.price_paise || 0), 0)
-    const laCarteCharge = 9900
+    const laCarteCharge = await getLaCartePrice()
     const total = subtotal + addonsTotal + laCarteCharge
 
     // Generate PDF data

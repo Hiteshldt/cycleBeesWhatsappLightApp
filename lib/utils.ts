@@ -56,9 +56,9 @@ export function generateWhatsAppMessage(
 ): string {
   const firstName = customerName.split(' ')[0]
   
-  return `🚴‍♂️ *CycleBees* - Professional Bike Service
+  return ` *CycleBees* - Professional Bike Service
 
-Hello *${firstName}*! 👋
+Hello *${firstName}*! 
 
 Your service estimate is ready for:
 *Bike:* ${bikeName}
@@ -94,8 +94,6 @@ export function formatDate(date: string | Date): string {
 // Status badge colors
 export function getStatusColor(status: string): string {
   switch (status) {
-    case 'draft':
-      return 'bg-gray-100 text-gray-800'
     case 'sent':
       return 'bg-blue-100 text-blue-800'
     case 'viewed':

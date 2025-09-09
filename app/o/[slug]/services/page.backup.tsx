@@ -62,8 +62,8 @@ export default function ServiceSelectionPage() {
         setSelectedItems(suggestedItemIds)
       }
 
-      // Mark as viewed if status is still draft
-      if (data.request.status === 'draft') {
+      // Mark as viewed if status is still sent
+      if (data.request.status === 'sent') {
         try {
           await fetch(`/api/public/orders/${slug}/view`, {
             method: 'POST',

@@ -17,7 +17,7 @@ export const requestSchema = z.object({
     .refine((phone) => {
       return phone.length >= 10
     }, 'Invalid phone number format'),
-  status: z.enum(['draft', 'viewed', 'confirmed', 'cancelled']),
+  status: z.enum(['draft', 'sent', 'viewed', 'confirmed', 'cancelled']),
 })
 
 // Request item validation schema
@@ -42,6 +42,7 @@ export const createRequestSchema = z.object({
 export const customerOrderSchema = z.object({
   selected_items: z.array(z.string().uuid()).min(0),
   selected_addons: z.array(z.string().uuid()).optional().default([]),
+  selected_bundles: z.array(z.string().uuid()).optional().default([]),
   status: z.enum(['viewed', 'confirmed']).optional(),
 })
 

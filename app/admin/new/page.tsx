@@ -29,6 +29,7 @@ export default function NewRequestPage() {
         bike_name: '',
         customer_name: '',
         phone_digits_intl: '',
+        // Use 'draft' to align with current DB constraint
         status: 'draft',
       },
       repair_items: [],
@@ -107,7 +108,7 @@ export default function NewRequestPage() {
     const message = generateWhatsAppMessage(customerName, bikeName, orderId, orderUrl)
     const whatsappUrl = generateWhatsAppURL(phone, message)
     
-    // Status remains 'draft' after sending - will be updated to 'viewed' when customer clicks
+    // Status remains 'sent' after sending - will be updated to 'viewed' when customer clicks
     
     window.open(whatsappUrl, '_blank')
   }

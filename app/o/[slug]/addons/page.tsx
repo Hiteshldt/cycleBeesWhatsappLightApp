@@ -4,9 +4,10 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Request, RequestItem, Addon } from '@/lib/supabase'
+import { Request, RequestItem, Addon, ServiceBundle } from '@/lib/supabase'
 import { formatCurrency } from '@/lib/utils'
 import { Check, MessageCircle, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react'
+import { getLaCarteSettings, type LaCarteSettings } from '@/lib/lacarte'
 
 type OrderData = {
   request: Request
@@ -20,10 +21,13 @@ export default function AddonsSelectionPage() {
 
   const [orderData, setOrderData] = useState<OrderData | null>(null)
   const [addons, setAddons] = useState<Addon[]>([])
+  const [bundles, setBundles] = useState<ServiceBundle[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set())
+  const [selectedBundles, setSelectedBundles] = useState<Set<string>>(new Set())
+  const [laCarte, setLaCarte] = useState<LaCarteSettings | null>(null)
 
   const loadSelectedItems = () => {
     // Load selected items from session storage
@@ -70,13 +74,39 @@ export default function AddonsSelectionPage() {
     }
   }
 
+  const fetchBundles = async () => {
+    try {
+      const response = await fetch('/api/bundles')
+      if (response.ok) {
+        const data = await response.json()
+        setBundles(data)
+      }
+    } catch (error) {
+      console.error('Error fetching bundles:', error)
+    }
+  }
+
   useEffect(() => {
     if (slug) {
       fetchOrderData()
       fetchAddons()
+      fetchBundles()
       loadSelectedItems()
     }
   }, [slug])
+
+  // Load La Carte settings for visual display (no change to totals)
+  useEffect(() => {
+    async function loadLaCarte() {
+      try {
+        const settings = await getLaCarteSettings()
+        setLaCarte(settings)
+      } catch (e) {
+        setLaCarte({ id: 'lacarte', real_price_paise: 9900, current_price_paise: 9900, discount_note: '' })
+      }
+    }
+    loadLaCarte()
+  }, [])
 
   const toggleAddonSelection = (addonId: string) => {
     const newSelected = new Set(selectedAddons)
@@ -88,8 +118,18 @@ export default function AddonsSelectionPage() {
     setSelectedAddons(newSelected)
   }
 
+  const toggleBundleSelection = (bundleId: string) => {
+    const newSelected = new Set(selectedBundles)
+    if (newSelected.has(bundleId)) {
+      newSelected.delete(bundleId)
+    } else {
+      newSelected.add(bundleId)
+    }
+    setSelectedBundles(newSelected)
+  }
+
   const calculateTotals = () => {
-    if (!orderData) return { servicesTotal: 0, addonsTotal: 0, grandTotal: 0 }
+    if (!orderData) return { servicesTotal: 0, addonsTotal: 0, bundlesTotal: 0, grandTotal: 0 }
 
     const servicesTotal = orderData.items
       .filter(item => selectedItems.has(item.id))
@@ -99,10 +139,14 @@ export default function AddonsSelectionPage() {
       .filter(addon => selectedAddons.has(addon.id))
       .reduce((sum, addon) => sum + addon.price_paise, 0)
     
+    const bundlesTotal = bundles
+      .filter(bundle => selectedBundles.has(bundle.id))
+      .reduce((sum, bundle) => sum + bundle.price_paise, 0)
+    
     const laCarteCharge = 9900
-    const grandTotal = servicesTotal + addonsTotal + laCarteCharge
+    const grandTotal = servicesTotal + addonsTotal + bundlesTotal + laCarteCharge
 
-    return { servicesTotal, addonsTotal, grandTotal }
+    return { servicesTotal, addonsTotal, bundlesTotal, grandTotal }
   }
 
   const handleBackToServices = () => {
@@ -110,9 +154,10 @@ export default function AddonsSelectionPage() {
   }
 
   const handleProceedToConfirm = () => {
-    // Store both selected items and addons for confirmation page
+    // Store selected items, addons, and bundles for confirmation page
     sessionStorage.setItem(`selectedItems_${slug}`, JSON.stringify(Array.from(selectedItems)))
     sessionStorage.setItem(`selectedAddons_${slug}`, JSON.stringify(Array.from(selectedAddons)))
+    sessionStorage.setItem(`selectedBundles_${slug}`, JSON.stringify(Array.from(selectedBundles)))
     router.push(`/o/${slug}`)
   }
 
@@ -220,10 +265,10 @@ export default function AddonsSelectionPage() {
         {/* Add-ons Section */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-yellow-300">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            ✨ Premium Add-on Services
+            ✨ Add-on Services
           </h2>
           <p className="text-gray-600 mb-6">
-            Enhance your bike maintenance with our premium Add-on Services. All services are optional and can be customized to your needs.
+            Enhance your bike maintenance with our Add-on Services. All services are optional and can be customized to your needs.
           </p>
 
           {addons.length > 0 ? (
@@ -270,6 +315,73 @@ export default function AddonsSelectionPage() {
           )}
         </div>
 
+        {/* Service Bundles Section */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-purple-300">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            🎁 Service Bundles
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Choose from our comprehensive service bundles that combine multiple services at discounted rates. Perfect for complete bike care.
+          </p>
+
+          {bundles.length > 0 ? (
+            <div className="space-y-4">
+              {bundles.map((bundle) => (
+                <div
+                  key={bundle.id}
+                  className={`rounded-lg border-2 cursor-pointer transition-colors ${
+                    selectedBundles.has(bundle.id)
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-purple-300 bg-purple-50/20'
+                  }`}
+                  onClick={() => toggleBundleSelection(bundle.id)}
+                >
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start">
+                        <div
+                          className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center mt-1 ${
+                            selectedBundles.has(bundle.id)
+                              ? 'border-purple-500 bg-purple-500'
+                              : 'border-gray-300'
+                          }`}
+                        >
+                          {selectedBundles.has(bundle.id) && (
+                            <Check className="h-3 w-3 text-white" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-gray-900">{bundle.name}</h3>
+                          {bundle.description && (
+                            <p className="text-sm text-gray-600 mt-1">{bundle.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xl font-bold text-purple-600">
+                        {formatCurrency(bundle.price_paise)}
+                      </div>
+                    </div>
+                    <div className="ml-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {bundle.bullet_points.map((point, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <span className="text-purple-600 mt-1 text-sm">•</span>
+                            <span className="text-sm text-gray-700">{point}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No Service Bundles available at the moment.</p>
+            </div>
+          )}
+        </div>
+
         {/* Updated Total Summary */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
@@ -284,8 +396,34 @@ export default function AddonsSelectionPage() {
                 <span>{formatCurrency(totals.addonsTotal)}</span>
               </div>
             )}
+            {selectedBundles.size > 0 && (
+              <div className="flex justify-between text-gray-700">
+                <span>Service Bundles ({selectedBundles.size} items)</span>
+                <span>{formatCurrency(totals.bundlesTotal)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-gray-700">
-              <span>La Carte Services (Fixed)</span>
+              <div className="flex flex-col">
+                <span>La Carte Services (Fixed)</span>
+                {laCarte && (
+                  <div className="text-xs mt-1">
+                    {laCarte.real_price_paise > laCarte.current_price_paise ? (
+                      <div className="flex items-center gap-2">
+                        <span className="line-through text-gray-400">{formatCurrency(laCarte.real_price_paise)}</span>
+                        <span className="text-green-600 font-semibold">{formatCurrency(laCarte.current_price_paise)}</span>
+                        <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+                          -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">{formatCurrency(laCarte.current_price_paise)}</span>
+                    )}
+                    {laCarte.real_price_paise > laCarte.current_price_paise && laCarte.discount_note && (
+                      <div className="text-[11px] text-gray-500 mt-0.5">{laCarte.discount_note}</div>
+                    )}
+                  </div>
+                )}
+              </div>
               <span>{formatCurrency(9900)}</span>
             </div>
             <div className="border-t pt-2 mt-2">

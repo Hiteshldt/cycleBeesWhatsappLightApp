@@ -36,9 +36,24 @@ export async function GET(
       )
     }
 
+    // Get confirmed bundle selections
+    const { data: confirmedBundles, error: bundlesError } = await supabase
+      .from('confirmed_order_bundles')
+      .select('bundle_id')
+      .eq('request_id', id)
+
+    if (bundlesError) {
+      console.error('Error fetching confirmed bundles:', bundlesError)
+      return NextResponse.json(
+        { error: 'Failed to fetch confirmed bundles' },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({
       selectedItems: confirmedServices?.map(s => s.service_item_id) || [],
       selectedAddons: confirmedAddons?.map(a => a.addon_id) || [],
+      selectedBundles: confirmedBundles?.map(b => b.bundle_id) || [],
     })
 
   } catch (error) {

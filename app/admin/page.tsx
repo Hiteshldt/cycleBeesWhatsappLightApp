@@ -1,12 +1,17 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Request } from '@/lib/supabase'
 import { formatCurrency, formatDate, getStatusColor, generateWhatsAppURL, generateWhatsAppMessage } from '@/lib/utils'
-import { Eye, Send, Copy, Filter, Download } from 'lucide-react'
+import { NotificationManager, StatusChangeDetector } from '@/lib/notification'
+import { Modal } from '@/components/ui/modal'
+import { BillPreview } from '@/components/BillPreview'
+import { NotesManager } from '@/components/NotesManager'
+import { getLaCartePrice } from '@/lib/lacarte'
+import { Eye, Send, Copy, Filter, Download, Bell, BellOff, Trash2, FileText, MessageSquare } from 'lucide-react'
 
 type RequestWithTotal = Request & {
   total_items: number
@@ -16,6 +21,30 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState<RequestWithTotal[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean
+    billData: any
+    title: string
+  }>({
+    isOpen: false,
+    billData: null,
+    title: ''
+  })
+  const [notesModal, setNotesModal] = useState<{
+    isOpen: boolean
+    requestId: string
+    orderId: string
+  }>({
+    isOpen: false,
+    requestId: '',
+    orderId: ''
+  })
+  
+  // Notification system refs
+  const notificationManager = useRef<NotificationManager | null>(null)
+  const statusDetector = useRef<StatusChangeDetector | null>(null)
+  const pollingInterval = useRef<NodeJS.Timeout | null>(null)
 
   const fetchRequests = async () => {
     try {
@@ -34,6 +63,13 @@ export default function AdminDashboard() {
       const data = await response.json()
       console.log('Received data:', data)
       setRequests(data)
+      
+      // Initialize status detector with current statuses to prevent false notifications
+      if (statusDetector.current && data.length > 0) {
+        statusDetector.current.initializeStatuses(
+          data.map((req: RequestWithTotal) => ({ id: req.id, status: req.status }))
+        )
+      }
     } catch (error) {
       console.error('Error fetching requests:', error)
       // Set empty array on error so the UI still renders
@@ -43,9 +79,96 @@ export default function AdminDashboard() {
     }
   }
 
+  // Initialize notification system
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      notificationManager.current = new NotificationManager()
+      statusDetector.current = new StatusChangeDetector(notificationManager.current)
+    }
+
+    return () => {
+      // Cleanup polling on unmount
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current)
+      }
+    }
+  }, [])
+
+  // Fetch requests and check for changes
   useEffect(() => {
     fetchRequests()
   }, [statusFilter])
+
+  // Start/stop polling based on notifications enabled state
+  useEffect(() => {
+    if (notificationsEnabled && statusDetector.current) {
+      startPolling()
+    } else {
+      stopPolling()
+    }
+
+    return () => stopPolling()
+  }, [notificationsEnabled])
+
+  const startPolling = () => {
+    if (pollingInterval.current) return // Already polling
+    
+    pollingInterval.current = setInterval(() => {
+      if (document.hidden) return // Don't poll when tab is not visible
+      fetchRequestsForNotifications()
+    }, 10000) // Poll every 10 seconds
+  }
+
+  const stopPolling = () => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current)
+      pollingInterval.current = null
+    }
+  }
+
+  const fetchRequestsForNotifications = async () => {
+    if (!statusDetector.current) return
+
+    try {
+      const response = await fetch('/api/requests')
+      if (response.ok) {
+        const data = await response.json()
+        const hasChanges = statusDetector.current.checkForChanges(
+          data.map((req: RequestWithTotal) => ({ id: req.id, status: req.status }))
+        )
+        
+        // If there are changes, refresh the main requests list
+        if (hasChanges) {
+          setRequests(data)
+        }
+      }
+    } catch (error) {
+      console.error('Error polling for updates:', error)
+    }
+  }
+
+  const toggleNotifications = () => {
+    setNotificationsEnabled(!notificationsEnabled)
+    if (notificationManager.current) {
+      if (notificationsEnabled) {
+        // If disabling, clear any existing notifications
+        notificationManager.current.clearNotificationIndicator()
+      }
+    }
+  }
+
+  // Clear notifications when user focuses on the dashboard
+  const handleFocus = () => {
+    if (notificationManager.current) {
+      notificationManager.current.clearNotificationIndicator()
+    }
+  }
+
+  // Add focus event listener
+  useEffect(() => {
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [])
 
   const handleResendWhatsApp = async (request: Request) => {
     const orderUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/o/${request.short_slug}`
@@ -57,7 +180,7 @@ export default function AdminDashboard() {
     )
     const whatsappUrl = generateWhatsAppURL(request.phone_digits_intl, message)
     
-    // Update status to 'draft' (no status change needed for WhatsApp send)
+    // Update status to 'sent' (no status change needed for WhatsApp send)
     // The status will be updated to 'viewed' when customer clicks the link
     
     window.open(whatsappUrl, '_blank')
@@ -80,6 +203,130 @@ export default function AdminDashboard() {
       fetchRequests() // Refresh the list
     } catch (error) {
       console.error('Error updating request status:', error)
+    }
+  }
+
+  const handlePreviewRequest = async (request: Request) => {
+    try {
+      let billData: any
+
+      if (request.status === 'confirmed') {
+        // For confirmed requests, get the actual confirmed data
+        const [confirmedResponse, requestResponse, addonsResponse] = await Promise.all([
+          fetch(`/api/requests/${request.id}/confirmed`),
+          fetch(`/api/requests/${request.id}`),
+          fetch('/api/admin/addons')
+        ])
+
+        if (!confirmedResponse.ok || !requestResponse.ok) {
+          alert('Failed to load request data')
+          return
+        }
+
+        const { selectedItems, selectedAddons } = await confirmedResponse.json()
+        const requestData = await requestResponse.json()
+        const allAddons = addonsResponse.ok ? await addonsResponse.json() : []
+
+        // Build confirmed selections
+        const selectedItemsDetails = (requestData.request_items || []).filter(
+          (it: any) => selectedItems.includes(it.id)
+        )
+        const selectedAddonsDetails = (allAddons || []).filter(
+          (ad: any) => selectedAddons.includes(ad.id)
+        )
+
+        const subtotal = selectedItemsDetails.reduce((sum: number, it: any) => sum + (it.price_paise || 0), 0)
+        const addonsTotal = selectedAddonsDetails.reduce((sum: number, ad: any) => sum + (ad.price_paise || 0), 0)
+        const laCarte = await getLaCartePrice()
+        const total = subtotal + addonsTotal + laCarte
+
+        billData = {
+          order_id: request.order_id,
+          customer_name: request.customer_name,
+          bike_name: request.bike_name,
+          created_at: request.created_at,
+          confirmed_at: new Date().toISOString(),
+          items: selectedItemsDetails.map((it: any) => ({
+            section: it.section,
+            label: it.label,
+            price_paise: it.price_paise,
+          })),
+          addons: selectedAddonsDetails.map((ad: any) => ({
+            name: ad.name,
+            description: ad.description,
+            price_paise: ad.price_paise,
+          })),
+          subtotal_paise: subtotal,
+          addons_paise: addonsTotal,
+          lacarte_paise: laCarte,
+          total_paise: total,
+          status: 'confirmed',
+        }
+      } else {
+        // For non-confirmed requests, show all items
+        const requestResponse = await fetch(`/api/requests/${request.id}`)
+        if (!requestResponse.ok) {
+          alert('Failed to load request data')
+          return
+        }
+
+        const requestData = await requestResponse.json()
+        const subtotal = (requestData.request_items || []).reduce((sum: number, item: any) => sum + item.price_paise, 0)
+        const laCarte = await getLaCartePrice()
+
+        billData = {
+          order_id: request.order_id,
+          customer_name: request.customer_name,
+          bike_name: request.bike_name,
+          created_at: request.created_at,
+          items: requestData.request_items || [],
+          addons: [], // No addons for non-confirmed requests in preview
+          subtotal_paise: subtotal,
+          addons_paise: 0,
+          lacarte_paise: laCarte,
+          total_paise: subtotal + laCarte,
+          status: request.status,
+        }
+      }
+
+      setPreviewModal({
+        isOpen: true,
+        billData,
+        title: `${request.status === 'confirmed' ? 'Confirmed Order' : 'Service Estimate'} - ${request.order_id}`
+      })
+    } catch (error) {
+      console.error('Error loading preview data:', error)
+      alert('Failed to load preview data. Please try again.')
+    }
+  }
+
+  const handleOpenNotes = (request: Request) => {
+    setNotesModal({
+      isOpen: true,
+      requestId: request.id,
+      orderId: request.order_id
+    })
+  }
+
+  const handleDeleteRequest = async (requestId: string, orderId: string) => {
+    const isConfirmed = confirm(`Are you sure you want to delete request ${orderId}? This action cannot be undone.`)
+    if (!isConfirmed) return
+
+    try {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        alert(`✅ Request ${orderId} deleted successfully`)
+        fetchRequests() // Refresh the list
+      } else {
+        const errorData = await response.json()
+        alert(`❌ Failed to delete request: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting request:', error)
+      alert('❌ Failed to delete request. Please check your connection and try again.')
     }
   }
 
@@ -117,7 +364,7 @@ export default function AdminDashboard() {
       // 5) Compute totals
       const subtotal = selectedItemsDetails.reduce((sum: number, it: { price_paise: number }) => sum + (it.price_paise || 0), 0)
       const addonsTotal = selectedAddonsDetails.reduce((sum: number, ad: { price_paise: number }) => sum + (ad.price_paise || 0), 0)
-      const laCarte = 9900
+      const laCarte = await getLaCartePrice()
       const total = subtotal + addonsTotal + laCarte
 
       // 6) Create bill data with exact selections
@@ -173,9 +420,29 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Service Requests</h1>
           <p className="text-gray-600">Manage all customer service requests</p>
         </div>
-        <Link href="/admin/new">
-          <Button>Create New Request</Button>
-        </Link>
+        <div className="flex gap-3">
+          <Button
+            onClick={toggleNotifications}
+            variant={notificationsEnabled ? "default" : "outline"}
+            size="sm"
+            title={notificationsEnabled ? "Disable notifications" : "Enable notifications"}
+          >
+            {notificationsEnabled ? (
+              <>
+                <Bell className="h-4 w-4 mr-2" />
+                Notifications On
+              </>
+            ) : (
+              <>
+                <BellOff className="h-4 w-4 mr-2" />
+                Notifications Off
+              </>
+            )}
+          </Button>
+          <Link href="/admin/new">
+            <Button>Create New Request</Button>
+          </Link>
+        </div>
       </div>
 
       {/* Status Filter */}
@@ -183,7 +450,7 @@ export default function AdminDashboard() {
         <Filter className="h-4 w-4 text-gray-500" />
         <span className="text-sm font-medium text-gray-700">Filter by status:</span>
         <div className="flex gap-2">
-          {['all', 'draft', 'viewed', 'confirmed', 'cancelled'].map((status) => (
+          {['all', 'sent', 'viewed', 'confirmed', 'cancelled'].map((status) => (
             <Button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -262,9 +529,16 @@ export default function AdminDashboard() {
                       {request.bike_name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={getStatusColor(request.status)}>
-                        {request.status.toUpperCase()}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={getStatusColor(request.status)}>
+                          {request.status.toUpperCase()}
+                        </Badge>
+                        {request.status !== 'sent' && (
+                          <Badge className="bg-gray-100 text-gray-600 text-xs">
+                            Locked
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {formatCurrency(request.total_paise)}
@@ -291,6 +565,26 @@ export default function AdminDashboard() {
                           <Copy className="h-4 w-4" />
                         </Button>
 
+                        {/* Notes Button */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenNotes(request)}
+                          title="Manage Notes"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+
+                        {/* Preview/View Button */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePreviewRequest(request)}
+                          title="Quick Preview"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+
                         {/* Download Confirmed PDF */}
                         {request.status === 'confirmed' && (
                           <Button
@@ -304,19 +598,29 @@ export default function AdminDashboard() {
                         )}
 
                         {/* Send/Resend WhatsApp */}
-                        {(request.status === 'draft' || request.status === 'viewed') && (
+                        {(request.status === 'sent' || request.status === 'viewed') && (
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleResendWhatsApp(request)}
-                            title={request.status === 'draft' ? 'Send WhatsApp' : 'Resend WhatsApp'}
+                            title={request.status === 'sent' ? 'Send WhatsApp' : 'Resend WhatsApp'}
                           >
                             <Send className="h-4 w-4" />
                           </Button>
                         )}
 
+                        {/* Delete Request - Available for all requests */}
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteRequest(request.id, request.order_id)}
+                          title="Delete Request"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+
                         {/* Status Actions */}
-                        {(request.status === 'draft' || request.status === 'viewed') && (
+                        {(request.status === 'sent' || request.status === 'viewed') && (
                           <Button
                             size="sm"
                             variant="destructive"
@@ -334,6 +638,33 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      {/* Preview Modal */}
+      <Modal
+        isOpen={previewModal.isOpen}
+        onClose={() => setPreviewModal({ isOpen: false, billData: null, title: '' })}
+        title={previewModal.title}
+        size="xl"
+      >
+        {previewModal.billData && (
+          <BillPreview billData={previewModal.billData} />
+        )}
+      </Modal>
+
+      {/* Notes Modal */}
+      <Modal
+        isOpen={notesModal.isOpen}
+        onClose={() => setNotesModal({ isOpen: false, requestId: '', orderId: '' })}
+        title={`Notes - ${notesModal.orderId}`}
+        size="lg"
+      >
+        {notesModal.requestId && (
+          <NotesManager 
+            requestId={notesModal.requestId} 
+            className="p-4"
+          />
+        )}
+      </Modal>
     </div>
   )
 }

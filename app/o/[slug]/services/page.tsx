@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Request, RequestItem } from '@/lib/supabase'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Check, MessageCircle, AlertCircle, ArrowRight } from 'lucide-react'
+import { getLaCarteSettings, type LaCarteSettings } from '@/lib/lacarte'
 
 type OrderData = {
   request: Request
@@ -22,12 +23,26 @@ export default function ServiceSelectionPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [laCarte, setLaCarte] = useState<LaCarteSettings | null>(null)
 
   useEffect(() => {
     if (slug) {
       fetchOrderData()
     }
   }, [slug])
+
+  // Load La Carte settings for visual display (no change to totals)
+  useEffect(() => {
+    async function loadLaCarte() {
+      try {
+        const settings = await getLaCarteSettings()
+        setLaCarte(settings)
+      } catch (e) {
+        setLaCarte({ id: 'lacarte', real_price_paise: 9900, current_price_paise: 9900, discount_note: '' })
+      }
+    }
+    loadLaCarte()
+  }, [])
 
   const fetchOrderData = async () => {
     try {
@@ -62,8 +77,8 @@ export default function ServiceSelectionPage() {
         setSelectedItems(suggestedItemIds)
       }
 
-      // Mark as viewed if status is still draft
-      if (data.request.status === 'draft') {
+      // Mark as viewed if status is still sent
+      if (data.request.status === 'sent') {
         try {
           await fetch(`/api/public/orders/${slug}/view`, {
             method: 'POST',
@@ -355,8 +370,18 @@ export default function ServiceSelectionPage() {
                 fittings & fixtures labour, tightening of loose parts, and pick & drop or full service at your doorstep.
               </p>
             </div>
-            <div className="text-right whitespace-nowrap text-lg font-semibold text-gray-900">
-              {formatCurrency(9900)}
+            <div className="text-right whitespace-nowrap">
+              {laCarte && laCarte.real_price_paise > laCarte.current_price_paise ? (
+                <div className="flex items-center gap-2 justify-end">
+                  <span className="line-through text-gray-400 text-sm">{formatCurrency(laCarte.real_price_paise)}</span>
+                  <span className="text-lg font-semibold text-green-700">{formatCurrency(laCarte.current_price_paise)}</span>
+                  <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded text-xs">
+                    -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
+                  </span>
+                </div>
+              ) : (
+                <span className="text-lg font-semibold text-gray-900">{formatCurrency(9900)}</span>
+              )}
             </div>
           </div>
         </div>
@@ -371,7 +396,27 @@ export default function ServiceSelectionPage() {
               <span>{formatCurrency(servicesTotal)}</span>
             </div>
             <div className="flex justify-between text-gray-700">
-              <span>La Carte Services (Fixed)</span>
+              <div className="flex flex-col">
+                <span>La Carte Services (Fixed)</span>
+                {laCarte && (
+                  <div className="text-xs mt-1">
+                    {laCarte.real_price_paise > laCarte.current_price_paise ? (
+                      <div className="flex items-center gap-2">
+                        <span className="line-through text-gray-400">{formatCurrency(laCarte.real_price_paise)}</span>
+                        <span className="text-green-600 font-semibold">{formatCurrency(laCarte.current_price_paise)}</span>
+                        <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+                          -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">{formatCurrency(laCarte.current_price_paise)}</span>
+                    )}
+                    {laCarte.real_price_paise > laCarte.current_price_paise && laCarte.discount_note && (
+                      <div className="text-[11px] text-gray-500 mt-0.5">{laCarte.discount_note}</div>
+                    )}
+                  </div>
+                )}
+              </div>
               <span>{formatCurrency(9900)}</span>
             </div>
             <div className="border-t pt-2 mt-2">
@@ -416,6 +461,5 @@ export default function ServiceSelectionPage() {
     </div>
   )
 }
-
 
 

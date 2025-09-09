@@ -47,7 +47,7 @@ export async function GET(
   }
 }
 
-// PATCH /api/requests/[id] - Update a request (mainly for status updates)
+// PATCH /api/requests/[id] - Update a request (restricted after sending)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -55,7 +55,34 @@ export async function PATCH(
   try {
     const body = await request.json()
     
-    // Only allow certain fields to be updated
+    // First check if request exists and get its current status
+    const resolvedParams = await params
+    const { data: existingRequest, error: fetchError } = await supabase
+      .from('requests')
+      .select('status, order_id')
+      .eq('id', resolvedParams.id)
+      .single()
+
+    if (fetchError || !existingRequest) {
+      return NextResponse.json(
+        { error: 'Request not found' },
+        { status: 404 }
+      )
+    }
+
+    // Enforce edit restrictions: Once a request has progressed beyond 'sent', 
+    // it cannot be modified except for allowed status transitions
+    if (existingRequest.status !== 'sent') {
+      return NextResponse.json(
+        { 
+          error: `Request ${existingRequest.order_id} has already been sent and cannot be modified. Current status: ${existingRequest.status}`,
+          code: 'REQUEST_LOCKED'
+        },
+        { status: 403 }
+      )
+    }
+    
+    // Only allow certain fields to be updated (very restrictive)
     const allowedFields = ['status']
     const updateData: Record<string, unknown> = {}
     
@@ -72,9 +99,9 @@ export async function PATCH(
       )
     }
 
-    // Validate status if provided
+    // Validate status if provided  
     if (updateData.status) {
-      const validStatuses = ['draft', 'viewed', 'confirmed', 'cancelled']
+      const validStatuses = ['sent', 'viewed', 'confirmed', 'cancelled']
       if (!validStatuses.includes(updateData.status as string)) {
         return NextResponse.json(
           { error: 'Invalid status value' },
@@ -87,8 +114,6 @@ export async function PATCH(
         updateData.sent_at = new Date().toISOString()
       }
     }
-
-    const resolvedParams = await params
     const { data, error } = await supabase
       .from('requests')
       .update(updateData)
@@ -145,13 +170,8 @@ export async function DELETE(
       )
     }
 
-    // Don't allow deletion of viewed requests
-    if (existingRequest.status === 'viewed') {
-      return NextResponse.json(
-        { error: 'Cannot delete viewed requests' },
-        { status: 403 }
-      )
-    }
+    // Allow deletion of all requests regardless of status
+    // The frontend will handle confirmation before sending the delete request
 
     // Delete the request (items will be deleted via CASCADE)
     const { error: deleteError } = await supabase

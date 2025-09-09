@@ -4,10 +4,11 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Request, RequestItem, Addon } from '@/lib/supabase'
+import { Request, RequestItem, Addon, ServiceBundle } from '@/lib/supabase'
 import { formatCurrency, generateWhatsAppURL, formatDate } from '@/lib/utils'
 import { generateBillHTML, createBillDownload } from '@/lib/bill-generator'
 import { Check, MessageCircle, AlertCircle, Download } from 'lucide-react'
+import { getLaCarteSettings, type LaCarteSettings } from '@/lib/lacarte'
 
 type OrderData = {
   request: Request
@@ -17,9 +18,11 @@ type OrderData = {
 type ConfirmedData = {
   selectedItems: string[]
   selectedAddons: string[]
+  selectedBundles: string[]
   totals: {
     subtotal: number
     addonsTotal: number
+    bundlesTotal: number
     laCarteCharge: number
     total: number
   }
@@ -32,27 +35,46 @@ export default function PublicOrderPage() {
 
   const [orderData, setOrderData] = useState<OrderData | null>(null)
   const [addons, setAddons] = useState<Addon[]>([])
+  const [bundles, setBundles] = useState<ServiceBundle[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set())
+  const [selectedBundles, setSelectedBundles] = useState<Set<string>>(new Set())
   const [hasViewedEstimate, setHasViewedEstimate] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
   const [confirmedData, setConfirmedData] = useState<ConfirmedData | null>(null)
+  const [laCarte, setLaCarte] = useState<LaCarteSettings | null>(null)
 
   useEffect(() => {
     if (slug) {
       fetchOrderData()
       fetchAddons()
+      fetchBundles()
       loadSelections()
     }
   }, [slug])
+
+  // Load La Carte settings for visual display (no change to totals)
+  useEffect(() => {
+    async function loadLaCarte() {
+      try {
+        const settings = await getLaCarteSettings()
+        setLaCarte(settings)
+      } catch (e) {
+        // Fallback silently; UI will render defaults
+        setLaCarte({ id: 'lacarte', real_price_paise: 9900, current_price_paise: 9900, discount_note: '', is_active: true })
+      }
+    }
+    loadLaCarte()
+  }, [])
 
   const loadSelections = () => {
     // Load selections from session storage
     const savedItems = sessionStorage.getItem(`selectedItems_${slug}`)
     const savedAddons = sessionStorage.getItem(`selectedAddons_${slug}`)
+    const savedBundles = sessionStorage.getItem(`selectedBundles_${slug}`)
     
     if (savedItems) {
       setSelectedItems(new Set(JSON.parse(savedItems)))
@@ -60,6 +82,10 @@ export default function PublicOrderPage() {
     
     if (savedAddons) {
       setSelectedAddons(new Set(JSON.parse(savedAddons)))
+    }
+    
+    if (savedBundles) {
+      setSelectedBundles(new Set(JSON.parse(savedBundles)))
     }
   }
 
@@ -87,14 +113,17 @@ export default function PublicOrderPage() {
             const confirmedData = await confirmedResponse.json()
             setSelectedItems(new Set(confirmedData.selectedItems))
             setSelectedAddons(new Set(confirmedData.selectedAddons))
+            setSelectedBundles(new Set(confirmedData.selectedBundles || []))
             
             // Calculate totals directly from confirmed data (not from state which hasn't updated yet)
             const confirmedItems = data.items.filter((item: RequestItem & { selected?: boolean }) => 
               confirmedData.selectedItems.includes(item.id)
             )
             
-            // We need to fetch addons to calculate addon totals
+            // We need to fetch addons and bundles to calculate totals
             let addonsTotal = 0
+            let bundlesTotal = 0
+            
             if (confirmedData.selectedAddons.length > 0) {
               try {
                 const addonsResponse = await fetch('/api/addons')
@@ -110,14 +139,30 @@ export default function PublicOrderPage() {
               }
             }
             
+            if (confirmedData.selectedBundles && confirmedData.selectedBundles.length > 0) {
+              try {
+                const bundlesResponse = await fetch('/api/bundles')
+                if (bundlesResponse.ok) {
+                  const bundlesData = await bundlesResponse.json()
+                  const confirmedBundles = bundlesData.filter((bundle: ServiceBundle) =>
+                    confirmedData.selectedBundles.includes(bundle.id)
+                  )
+                  bundlesTotal = confirmedBundles.reduce((sum: number, bundle: ServiceBundle) => sum + bundle.price_paise, 0)
+                }
+              } catch (error) {
+                console.error('Error fetching bundles for total calculation:', error)
+              }
+            }
+            
             const subtotal = confirmedItems.reduce((sum: number, item: RequestItem & { selected?: boolean }) => sum + item.price_paise, 0)
             const laCarteCharge = 9900
-            const total = subtotal + addonsTotal + laCarteCharge
+            const total = subtotal + addonsTotal + bundlesTotal + laCarteCharge
             
             setConfirmedData({
               selectedItems: confirmedData.selectedItems,
               selectedAddons: confirmedData.selectedAddons,
-              totals: { subtotal, addonsTotal, laCarteCharge, total }
+              selectedBundles: confirmedData.selectedBundles || [],
+              totals: { subtotal, addonsTotal, bundlesTotal, laCarteCharge, total }
             })
           }
         } catch (error) {
@@ -135,8 +180,8 @@ export default function PublicOrderPage() {
         }
       }
 
-      // Mark as viewed if status is still draft
-      if (data.request.status === 'draft') {
+      // Mark as viewed if status is still draft/sent (support both)
+      if (data.request.status === 'draft' || data.request.status === 'sent') {
         try {
           // Use saved selections or default to suggested items for marking as viewed
           const savedItems = sessionStorage.getItem(`selectedItems_${slug}`)
@@ -182,6 +227,18 @@ export default function PublicOrderPage() {
     }
   }
 
+  const fetchBundles = async () => {
+    try {
+      const response = await fetch('/api/bundles')
+      if (response.ok) {
+        const data = await response.json()
+        setBundles(data)
+      }
+    } catch (error) {
+      console.error('Error fetching bundles:', error)
+    }
+  }
+
   const toggleItemSelection = (itemId: string) => {
     const newSelected = new Set(selectedItems)
     if (newSelected.has(itemId)) {
@@ -203,7 +260,7 @@ export default function PublicOrderPage() {
   }
 
   const calculateTotal = () => {
-    if (!orderData) return { subtotal: 0, addonsTotal: 0, laCarteCharge: 0, total: 0 }
+    if (!orderData) return { subtotal: 0, addonsTotal: 0, bundlesTotal: 0, laCarteCharge: 0, total: 0 }
 
     const subtotal = orderData.items
       .filter(item => selectedItems.has(item.id))
@@ -214,11 +271,16 @@ export default function PublicOrderPage() {
       .filter(addon => selectedAddons.has(addon.id))
       .reduce((sum, addon) => sum + addon.price_paise, 0)
     
+    // Calculate selected bundles total
+    const bundlesTotal = bundles
+      .filter(bundle => selectedBundles.has(bundle.id))
+      .reduce((sum, bundle) => sum + bundle.price_paise, 0)
+    
     // Add fixed La Carte Services charge (₹99)
     const laCarteCharge = 9900 // ₹99 in paise
-    const total = subtotal + addonsTotal + laCarteCharge
+    const total = subtotal + addonsTotal + bundlesTotal + laCarteCharge
 
-    return { subtotal, addonsTotal, laCarteCharge, total }
+    return { subtotal, addonsTotal, bundlesTotal, laCarteCharge, total }
   }
 
   const handleConfirmOrder = () => {
@@ -254,6 +316,7 @@ export default function PublicOrderPage() {
         body: JSON.stringify({
           selected_items: Array.from(selectedItems),
           selected_addons: Array.from(selectedAddons),
+          selected_bundles: Array.from(selectedBundles),
           status: 'confirmed'
         }),
       })
@@ -272,11 +335,13 @@ export default function PublicOrderPage() {
       setConfirmedData({
         selectedItems: Array.from(selectedItems),
         selectedAddons: Array.from(selectedAddons),
+        selectedBundles: Array.from(selectedBundles),
         totals
       })
       // Persist selections to sessionStorage for consistency
       sessionStorage.setItem(`selectedItems_${slug}`, JSON.stringify(Array.from(selectedItems)))
       sessionStorage.setItem(`selectedAddons_${slug}`, JSON.stringify(Array.from(selectedAddons)))
+      sessionStorage.setItem(`selectedBundles_${slug}`, JSON.stringify(Array.from(selectedBundles)))
       
       // Show success message
       alert('Order confirmed successfully! You can now download your confirmed order PDF. Our team will contact you soon to schedule the service.')
@@ -617,6 +682,50 @@ export default function PublicOrderPage() {
           </div>
         )}
 
+        {/* Selected Service Bundles */}
+        {bundles.filter(bundle => selectedBundles.has(bundle.id)).length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Service Bundles</h3>
+            <div className="space-y-4">
+              {bundles.filter(bundle => selectedBundles.has(bundle.id)).map((bundle) => (
+                <div
+                  key={bundle.id}
+                  className="rounded-lg border border-green-200 bg-green-50"
+                >
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start">
+                        <div className="w-5 h-5 rounded border-2 border-green-500 bg-green-500 mr-3 flex items-center justify-center mt-1">
+                          <Check className="h-3 w-3 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg text-gray-900">{bundle.name}</h4>
+                          {bundle.description && (
+                            <p className="text-sm text-gray-600 mt-1">{bundle.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-xl font-bold text-gray-900">
+                        {formatCurrency(bundle.price_paise)}
+                      </div>
+                    </div>
+                    <div className="ml-8">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {bundle.bullet_points.map((point, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <span className="text-green-600 mt-1 text-sm">•</span>
+                            <span className="text-sm text-gray-700">{point}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* La Carte Services Section */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">La Carte Services (Fixed charges - Free Services included below)</h3>
@@ -634,10 +743,38 @@ export default function PublicOrderPage() {
                     air filling, oiling & lubrication, fitting & repair labour, 
                     tightening of loose parts, and pick & drop or full service at your doorstep
                   </p>
+                  {laCarte && (
+                    <div className="mt-2 text-xs">
+                      {laCarte.real_price_paise > laCarte.current_price_paise ? (
+                        <div className="flex items-center gap-2">
+                          <span className="line-through text-gray-400">{formatCurrency(laCarte.real_price_paise)}</span>
+                          <span className="text-green-700 font-semibold">{formatCurrency(laCarte.current_price_paise)}</span>
+                          <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+                            -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">{formatCurrency(laCarte.current_price_paise)}</span>
+                      )}
+                      {laCarte.real_price_paise > laCarte.current_price_paise && laCarte.discount_note && (
+                        <div className="text-[11px] text-gray-500 mt-0.5">{laCarte.discount_note}</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="text-lg font-semibold text-gray-900">
-                {formatCurrency(9900)}
+              <div className="text-right">
+                {laCarte && laCarte.real_price_paise > laCarte.current_price_paise ? (
+                  <div className="flex items-center gap-2 justify-end">
+                    <span className="line-through text-gray-400 text-sm">{formatCurrency(laCarte.real_price_paise)}</span>
+                    <span className="text-lg font-semibold text-green-700">{formatCurrency(laCarte.current_price_paise)}</span>
+                    <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded text-xs">
+                      -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-lg font-semibold text-gray-900">{formatCurrency(9900)}</span>
+                )}
               </div>
             </div>
           </div>
@@ -657,8 +794,34 @@ export default function PublicOrderPage() {
                 <span>{formatCurrency(totals.addonsTotal)}</span>
               </div>
             )}
+            {selectedBundles.size > 0 && (
+              <div className="flex justify-between text-gray-700">
+                <span>Service Bundles ({selectedBundles.size} items)</span>
+                <span>{formatCurrency(totals.bundlesTotal)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-gray-700">
-              <span>La Carte Services (Fixed)</span>
+              <div className="flex flex-col">
+                <span>La Carte Services (Fixed)</span>
+                {laCarte && (
+                  <div className="text-xs mt-1">
+                    {laCarte.real_price_paise > laCarte.current_price_paise ? (
+                      <div className="flex items-center gap-2">
+                        <span className="line-through text-gray-400">{formatCurrency(laCarte.real_price_paise)}</span>
+                        <span className="text-green-600 font-semibold">{formatCurrency(laCarte.current_price_paise)}</span>
+                        <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
+                          -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">{formatCurrency(laCarte.current_price_paise)}</span>
+                    )}
+                    {laCarte.real_price_paise > laCarte.current_price_paise && laCarte.discount_note && (
+                      <div className="text-[11px] text-gray-500 mt-0.5">{laCarte.discount_note}</div>
+                    )}
+                  </div>
+                )}
+              </div>
               <span>{formatCurrency(9900)}</span>
             </div>
             <div className="border-t pt-2 mt-2">
@@ -712,8 +875,34 @@ export default function PublicOrderPage() {
                       <span>{formatCurrency(totals.addonsTotal)}</span>
                     </div>
                   )}
+                  {selectedBundles.size > 0 && (
+                    <div className="flex justify-between text-sm mt-1">
+                      <span>Service Bundles ({selectedBundles.size} items)</span>
+                      <span>{formatCurrency(totals.bundlesTotal)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm mt-1">
-                    <span>La Carte Services</span>
+                    <div className="flex flex-col">
+                      <span>La Carte Services</span>
+                      {laCarte && (
+                        <div className="text-[11px] mt-0.5">
+                          {laCarte.real_price_paise > laCarte.current_price_paise ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="line-through text-gray-400">{formatCurrency(laCarte.real_price_paise)}</span>
+                              <span className="text-green-600 font-semibold">{formatCurrency(laCarte.current_price_paise)}</span>
+                              <span className="px-1 bg-green-50 text-green-700 border border-green-200 rounded">
+                                -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500">{formatCurrency(laCarte.current_price_paise)}</span>
+                          )}
+                          {laCarte.real_price_paise > laCarte.current_price_paise && laCarte.discount_note && (
+                            <div className="text-[10px] text-gray-500 mt-0.5">{laCarte.discount_note}</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <span>{formatCurrency(9900)}</span>
                   </div>
                   <div className="border-t pt-2 mt-2">
