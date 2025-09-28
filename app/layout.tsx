@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { ToastHost } from '@/components/mobile/Toast'
 
 export const metadata: Metadata = {
   title: 'CycleBees - Bike Service Management',
@@ -15,6 +16,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
+        {/* Global toast host */}
+        <ToastHost />
       </body>
     </html>
   )

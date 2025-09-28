@@ -2,7 +2,7 @@
 import { formatCurrency, formatDate } from './utils'
 
 // Base64 encoded logo (will be replaced with actual logo data)
-const LOGO_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+const _LOGO_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 
 export interface BillData {
   order_id: string
@@ -16,6 +16,11 @@ export interface BillData {
     label: string
     price_paise: number
   }[]
+  bundles?: {
+    name: string
+    description?: string
+    price_paise: number
+  }[]
   addons?: {
     name: string
     description?: string
@@ -23,6 +28,7 @@ export interface BillData {
   }[]
   subtotal_paise: number
   addons_paise?: number
+  bundles_paise?: number
   lacarte_paise: number
   total_paise: number
   status?: string
@@ -265,6 +271,31 @@ export function generateBillHTML(data: BillData): string {
         </div>
         ` : ''}
 
+        ${data.bundles && data.bundles.length > 0 ? `
+        <div class="section">
+            <div class="section-title">Service Bundles</div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Bundle</th>
+                        <th style="text-align: right;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.bundles.map(bundle => `
+                    <tr>
+                        <td>
+                            <strong>${bundle.name}</strong>
+                            ${bundle.description ? `<br><small style=\"color: #6b7280;\">${bundle.description}</small>` : ''}
+                        </td>
+                        <td class="price-cell">${formatCurrency(bundle.price_paise)}</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        ` : ''}
+
         ${replacementItems.length > 0 ? `
         <div class="section">
             <div class="section-title">🔩 Replacement Parts</div>
@@ -344,6 +375,12 @@ export function generateBillHTML(data: BillData): string {
                 <span>${formatCurrency(data.addons_paise)}</span>
             </div>
             ` : ''}
+            ${data.bundles_paise ? `
+            <div class="total-row tax">
+                <span>Service Bundles:</span>
+                <span>${formatCurrency(data.bundles_paise)}</span>
+            </div>
+            ` : ''}
             <div class="total-row tax">
                 <span>La Carte Services (Fixed):</span>
                 <span>${formatCurrency(data.lacarte_paise)}</span>
@@ -363,6 +400,7 @@ export function generateBillHTML(data: BillData): string {
         <div class="footer">
             <p>Thank you for choosing CycleBees!</p>
             <p>For any queries, contact us via WhatsApp</p>
+            <p style="margin-top: 6px;"><a href="https://wa.me/919597312212" target="_blank" style="color: #2563eb; text-decoration: none;">Chat with us: +91 95973 12212</a></p>
             <p style="margin-top: 10px; font-size: 12px;">Generated on ${new Date().toLocaleString('en-IN')}</p>
         </div>
     </div>

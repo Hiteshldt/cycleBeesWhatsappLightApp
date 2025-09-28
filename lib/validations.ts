@@ -13,10 +13,7 @@ export const requestSchema = z.object({
         return '91' + phone
       }
       return phone
-    })
-    .refine((phone) => {
-      return phone.length >= 10
-    }, 'Invalid phone number format'),
+    }),
   status: z.enum(['draft', 'sent', 'viewed', 'confirmed', 'cancelled']),
 })
 

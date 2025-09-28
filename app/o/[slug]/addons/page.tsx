@@ -54,6 +54,12 @@ export default function AddonsSelectionPage() {
 
       const data = await response.json()
       setOrderData(data)
+
+      // If already confirmed, redirect to summary page
+      if (data.request.status === 'confirmed') {
+        router.replace(`/o/${slug}`)
+        return
+      }
     } catch (error) {
       console.error('Error fetching order data:', error)
       setError('Failed to load order details.')
@@ -119,13 +125,14 @@ export default function AddonsSelectionPage() {
   }
 
   const toggleBundleSelection = (bundleId: string) => {
-    const newSelected = new Set(selectedBundles)
-    if (newSelected.has(bundleId)) {
-      newSelected.delete(bundleId)
+    // Allow only one bundle selection at a time
+    if (selectedBundles.has(bundleId)) {
+      // Deselect if already selected
+      setSelectedBundles(new Set())
     } else {
-      newSelected.add(bundleId)
+      // Select only this bundle
+      setSelectedBundles(new Set([bundleId]))
     }
-    setSelectedBundles(newSelected)
   }
 
   const calculateTotals = () => {

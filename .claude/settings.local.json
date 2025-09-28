@@ -9,7 +9,9 @@
       "Bash(npm run build:*)",
       "Bash(vercel:*)",
       "Bash(psql:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(rm:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

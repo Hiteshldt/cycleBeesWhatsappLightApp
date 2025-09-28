@@ -5,9 +5,13 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Request, RequestItem } from '@/lib/supabase'
-import { formatCurrency, formatDate, openWhatsApp } from '@/lib/utils'
-import { Check, MessageCircle, AlertCircle, ArrowRight } from 'lucide-react'
-import { getLaCarteSettings, type LaCarteSettings } from '@/lib/lacarte'
+import { openWhatsApp, formatCurrency } from '@/lib/utils'
+import { MessageCircle, AlertCircle, Check } from 'lucide-react'
+import { getLaCarteSettings, formatLaCarteDisplay, type LaCarteSettings } from '@/lib/lacarte'
+import { AppHeader } from '@/components/mobile/AppHeader'
+import { SelectionCard } from '@/components/mobile/SelectionCard'
+import { CategorySection } from '@/components/mobile/CategorySection'
+import { StickyActionBar } from '@/components/mobile/StickyActionBar'
 
 type OrderData = {
   request: Request
@@ -58,6 +62,12 @@ export default function ServiceSelectionPage() {
 
       const data = await response.json()
       setOrderData(data)
+
+      // If already confirmed, redirect to summary page
+      if (data.request.status === 'confirmed') {
+        router.replace(`/o/${slug}`)
+        return
+      }
 
       // Pre-select all suggested items or load confirmed selections if available
       if (data.request.status === 'confirmed') {
@@ -167,6 +177,10 @@ export default function ServiceSelectionPage() {
   const replacementItems = items.filter(item => item.section === 'replacement')
   const servicesTotal = calculateServicesTotal()
 
+  // Calculate La Carte price and create breakdown data
+  const laCartePrice = laCarte?.current_price_paise || 9900
+  const laCarteDisplay = laCarte ? formatLaCarteDisplay(laCarte) : undefined
+
   // Check if order is cancelled
   if (request.status === 'cancelled') {
     return (
@@ -193,271 +207,194 @@ export default function ServiceSelectionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">CycleBees</h1>
-              <p className="text-sm text-gray-600">Professional Bike Service</p>
-            </div>
-            <Badge className="bg-blue-100 text-blue-800">
-              Order #{request.order_id}
-            </Badge>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50 pb-32">
+      {/* Enhanced App Header */}
+      <AppHeader
+        title="Choose Your Services"
+        subtitle={`${request.bike_name} • ${request.customer_name}`}
+        progress={33}
+        step="Step 1 of 3"
+        onHelp={handleNeedHelp}
+        rightSlot={
+          <Badge className="bg-white/90 text-gray-700 text-xs font-medium border">
+            #{request.order_id}
+          </Badge>
+        }
+      />
 
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        {/* Progress Indicator */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center">
-            <div className="flex items-center text-blue-600">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                1
-              </div>
-              <span className="ml-2 font-medium">Select Services</span>
-            </div>
-            <div className="mx-4 w-16 h-1 bg-gray-200 rounded"></div>
-            <div className="flex items-center text-gray-400">
-              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-sm font-bold">
-                2
-              </div>
-              <span className="ml-2">Add-on Services</span>
-            </div>
-            <div className="mx-4 w-16 h-1 bg-gray-200 rounded"></div>
-            <div className="flex items-center text-gray-400">
-              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-sm font-bold">
-                3
-              </div>
-              <span className="ml-2">Confirm</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Order Summary */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Service Estimate for {request.bike_name}
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Select the services and parts you want for your bike. You can customize your selection before proceeding to add-on services.
-          </p>
-          
-          <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-            <div>
-              <p className="text-sm text-gray-600">Customer</p>
-              <p className="font-medium">{request.customer_name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Bike</p>
-              <p className="font-medium">{request.bike_name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Request Created</p>
-              <p className="font-medium">{formatDate(request.created_at)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Status</p>
-              <p className="font-medium capitalize">{request.status}</p>
-            </div>
-          </div>
-        </div>
+      <div className="max-w-md mx-auto px-4 py-4 space-y-4">
 
         {/* Repair Services */}
         {repairItems.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-red-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">     Repair Services</h3>
+          <CategorySection
+            title="Repair Services"
+            emoji="🔧"
+            description="Essential fixes for your bike"
+            count={repairItems.length}
+          >
             <div className="space-y-3">
               {repairItems.map((item) => (
-                <div
+                <SelectionCard
                   key={item.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedItems.has(item.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-red-200 bg-red-50/20'
-                  }`}
-                  onClick={() => toggleItemSelection(item.id)}
-                >
-                  <div className="flex items-center">
-                    <div
-                      className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center ${
-                        selectedItems.has(item.id)
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300'
-                      }`}
-                    >
-                      {selectedItems.has(item.id) && (
-                        <Check className="h-3 w-3 text-white" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{item.label}</p>
-                      {item.is_suggested && (
-                        <p className="text-sm text-blue-600">Recommended</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(item.price_paise)}
-                  </div>
-                </div>
+                  id={item.id}
+                  title={item.label}
+                  price={item.price_paise}
+                  isSelected={selectedItems.has(item.id)}
+                  isRecommended={item.is_suggested}
+                  type="repair"
+                  onToggle={toggleItemSelection}
+                />
               ))}
             </div>
-          </div>
+          </CategorySection>
         )}
-
 
         {/* Replacement Parts */}
         {replacementItems.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-purple-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Replacement Parts</h3>
+          <CategorySection
+            title="Replacement Parts"
+            emoji="⚙️"
+            description="New parts for better performance"
+            count={replacementItems.length}
+          >
             <div className="space-y-3">
               {replacementItems.map((item) => (
-                <div
+                <SelectionCard
                   key={item.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedItems.has(item.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-purple-200 bg-purple-50/40'
-                  }`}
-                  onClick={() => toggleItemSelection(item.id)}
-                >
-                  <div className="flex items-center">
-                    <div
-                      className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center ${
-                        selectedItems.has(item.id)
-                          ? 'border-blue-500 bg-blue-500'
-                          : 'border-gray-300'
-                      }`}
-                    >
-                      {selectedItems.has(item.id) && (
-                        <Check className="h-3 w-3 text-white" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{item.label}</p>
-                      {item.is_suggested && (
-                        <p className="text-sm text-blue-600">Recommended</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(item.price_paise)}
-                  </div>
-                </div>
+                  id={item.id}
+                  title={item.label}
+                  price={item.price_paise}
+                  isSelected={selectedItems.has(item.id)}
+                  isRecommended={item.is_suggested}
+                  type="replacement"
+                  onToggle={toggleItemSelection}
+                />
               ))}
             </div>
-          </div>
+          </CategorySection>
         )}
 
-        
-{/* La Carte Services (Fixed) */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 border-yellow-300">
-          <div className="flex items-start justify-between">
-            <div className="pr-4">
-              <div className="flex items-center mb-1">
-                <div className="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center mr-2">
-                  {/* Always included */}
-                  <Check className="h-3 w-3" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">La Carte Service (Fixed Charges   Free Services Included below)</h3>
+        {/* La Carte Service - Always Included */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 p-4 mb-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <Check className="w-5 h-5 text-white" />
               </div>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                General service & inspection report, full cleaning, tyre puncture check, air filling, oiling & lubrication,
-                fittings & fixtures labour, tightening of loose parts, and pick & drop or full service at your doorstep.
-              </p>
+              <div className="flex-1">
+                <h3 className="text-base font-medium text-green-900 mb-1">
+                  La Carte Service (Fixed Charges - Free Services Included below)
+                </h3>
+              </div>
             </div>
-            <div className="text-right whitespace-nowrap">
+            <div className="text-right flex-shrink-0">
               {laCarte && laCarte.real_price_paise > laCarte.current_price_paise ? (
-                <div className="flex items-center gap-2 justify-end">
-                  <span className="line-through text-gray-400 text-sm">{formatCurrency(laCarte.real_price_paise)}</span>
-                  <span className="text-lg font-semibold text-green-700">{formatCurrency(laCarte.current_price_paise)}</span>
-                  <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded text-xs">
-                    -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
-                  </span>
+                <div className="space-y-1">
+                  {/* Discounted Price - First and Larger */}
+                  <div className="text-lg font-bold text-green-700">
+                    {formatCurrency(laCarte.current_price_paise)}
+                  </div>
+
+                  {/* MRP - Below Price */}
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-xs text-gray-500 font-medium">MRP</span>
+                    <span className="text-sm text-gray-500 line-through">
+                      {formatCurrency(laCarte.real_price_paise)}
+                    </span>
+                  </div>
+
+                  {/* Percentage Off - Below MRP */}
+                  <div className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold inline-block">
+                    {Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}% off
+                  </div>
+
+                  {/* Savings Amount */}
+                  <div className="text-xs text-green-600 font-medium">
+                    You save {formatCurrency(laCarte.real_price_paise - laCarte.current_price_paise)}!
+                  </div>
+
+                  {/* Offer Note */}
+                  {laCarte.discount_note && (
+                    <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border-l-2 border-blue-400">
+                      🎉 {laCarte.discount_note}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <span className="text-lg font-semibold text-gray-900">{formatCurrency(9900)}</span>
+                <span className="text-lg font-bold text-green-700">
+                  {formatCurrency(9900)}
+                </span>
               )}
             </div>
           </div>
-        </div>
 
-        
-{/* Services Total */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Services Summary</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between text-gray-700">
-              <span>Selected Services ({selectedItems.size} items)</span>
-              <span>{formatCurrency(servicesTotal)}</span>
-            </div>
-            <div className="flex justify-between text-gray-700">
-              <div className="flex flex-col">
-                <span>La Carte Services (Fixed)</span>
-                {laCarte && (
-                  <div className="text-xs mt-1">
-                    {laCarte.real_price_paise > laCarte.current_price_paise ? (
-                      <div className="flex items-center gap-2">
-                        <span className="line-through text-gray-400">{formatCurrency(laCarte.real_price_paise)}</span>
-                        <span className="text-green-600 font-semibold">{formatCurrency(laCarte.current_price_paise)}</span>
-                        <span className="px-1.5 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded">
-                          -{Math.round(((laCarte.real_price_paise - laCarte.current_price_paise) / Math.max(laCarte.real_price_paise, 1)) * 100)}%
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-500">{formatCurrency(laCarte.current_price_paise)}</span>
-                    )}
-                    {laCarte.real_price_paise > laCarte.current_price_paise && laCarte.discount_note && (
-                      <div className="text-[11px] text-gray-500 mt-0.5">{laCarte.discount_note}</div>
-                    )}
-                  </div>
-                )}
+          <div className="bg-white/60 rounded-lg p-3 mt-3">
+            <div className="grid grid-cols-1 gap-2">
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-sm text-green-800">General service & inspection report</span>
               </div>
-              <span>{formatCurrency(9900)}</span>
-            </div>
-            <div className="border-t pt-2 mt-2">
-              <div className="flex justify-between text-lg font-bold text-gray-900">
-                <span>Services Total</span>
-                <span>{formatCurrency(servicesTotal + 9900)}</span>
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-sm text-green-800">Full cleaning & wash</span>
               </div>
-              <p className="text-sm text-gray-600 mt-1">
-                Next: Choose add-on services to enhance your bike maintenance
-              </p>
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-sm text-green-800">Tyre puncture check & air filling</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-sm text-green-800">Oiling & lubrication service</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-sm text-green-800">Fittings & fixtures labour</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-sm text-green-800">Tightening of loose parts</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
+                <span className="text-sm text-green-800">Pick & drop or doorstep service</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="space-y-3">
-          <Button
-            onClick={handleContinueToAddons}
-            className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700"
-            size="lg"
-          >
-            Continue to Add-on Services
-            <ArrowRight className="h-5 w-5 ml-2" />
-          </Button>
+        {/* Additional spacing for bottom action bar and support button */}
+        <div className="h-32" />
+      </div>
 
+      {/* Sticky Action Bar */}
+      <StickyActionBar
+        totalPaise={servicesTotal + laCartePrice}
+        primaryLabel="Continue to Add-ons"
+        onPrimary={handleContinueToAddons}
+        selectedCount={selectedItems.size}
+        summaryText="Next: Choose add-on services to enhance your bike maintenance"
+        isExpandable={true}
+        servicesBreakdown={{
+          selectedServicesPaise: servicesTotal,
+          selectedCount: selectedItems.size,
+          laCartePaise: laCartePrice,
+          laCarteDisplay: laCarteDisplay
+        }}
+      />
+
+      {/* Support Button Below */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 p-3">
+        <div className="max-w-md mx-auto">
           <Button
             onClick={handleNeedHelp}
             variant="outline"
-            className="w-full h-10"
+            className="w-full h-10 text-sm border-gray-300 text-gray-600"
           >
             <MessageCircle className="h-4 w-4 mr-2" />
             Need Help?
           </Button>
         </div>
-
-        {/* Footer */}
-        <div className="text-center mt-8 text-sm text-gray-500">
-          <p>Step 1 of 3: Select your desired services and continue</p>
-          <p className="mt-1">Questions? Contact us on WhatsApp</p>
-        </div>
       </div>
     </div>
   )
 }
-

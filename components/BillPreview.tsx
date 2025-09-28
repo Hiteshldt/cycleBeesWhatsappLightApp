@@ -15,6 +15,13 @@ interface BillAddon {
   price_paise: number
 }
 
+interface BillBundle {
+  name: string
+  description: string | null
+  price_paise: number
+  bullet_points?: string[]
+}
+
 interface BillData {
   order_id: string
   customer_name: string
@@ -23,8 +30,10 @@ interface BillData {
   confirmed_at?: string
   items: BillItem[]
   addons: BillAddon[]
+  bundles?: BillBundle[]
   subtotal_paise: number
   addons_paise: number
+  bundles_paise?: number
   lacarte_paise: number
   total_paise: number
   status: string
@@ -131,6 +140,26 @@ export function BillPreview({ billData, title }: BillPreviewProps) {
                 ))}
               </>
             )}
+
+            {/* Service Bundles */}
+            {billData.bundles && billData.bundles.length > 0 && (
+              <>
+                <div className="px-4 py-2 bg-purple-50 font-medium text-purple-800 text-xs">
+                  Service Bundles
+                </div>
+                {billData.bundles.map((bundle, index) => (
+                  <div key={index} className="px-4 py-3">
+                    <div className="flex justify-between">
+                      <span className="flex-1 font-medium">{bundle.name}</span>
+                      <span className="font-semibold">{formatCurrency(bundle.price_paise)}</span>
+                    </div>
+                    {bundle.description && (
+                      <div className="text-xs text-gray-600 mt-1">{bundle.description}</div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
             
             {/* La Carte Service */}
             <div className="px-4 py-3 bg-blue-50">
@@ -157,6 +186,12 @@ export function BillPreview({ billData, title }: BillPreviewProps) {
             <div className="flex justify-between">
               <span>Add-on Services:</span>
               <span>{formatCurrency(billData.addons_paise)}</span>
+            </div>
+          )}
+          {billData.bundles_paise && billData.bundles_paise > 0 && (
+            <div className="flex justify-between">
+              <span>Service Bundles:</span>
+              <span>{formatCurrency(billData.bundles_paise)}</span>
             </div>
           )}
           <div className="flex justify-between">

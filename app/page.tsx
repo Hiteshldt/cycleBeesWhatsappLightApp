@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Settings, Search } from 'lucide-react'
 
@@ -11,7 +12,17 @@ export default function HomePage() {
       <div className="bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900">CycleBees</h1>
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <Image
+                src="/logo.png"
+                alt="CycleBees Logo"
+                width={48}
+                height={48}
+                className="object-contain"
+                priority
+              />
+              <h1 className="text-3xl font-bold text-gray-900">CycleBees</h1>
+            </div>
             <p className="text-gray-600 mt-2">Professional Bike Service Management</p>
           </div>
         </div>

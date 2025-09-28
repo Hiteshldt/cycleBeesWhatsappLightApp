@@ -55,7 +55,7 @@ export async function getLaCarteSettings(): Promise<LaCarteSettings> {
           cacheTimestamp = now
           return data
         }
-      } catch (e) {
+      } catch {
         // ignore and try direct supabase
       }
 

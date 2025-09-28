@@ -51,40 +51,12 @@ export function normalizeIntlPhone(phone: string): string {
 export function generateWhatsAppURL(phone: string, message: string): string {
   const normalized = normalizeIntlPhone(phone)
   const encodedMessage = encodeURIComponent(message)
-  // Force WhatsApp Web to avoid opening the desktop/mobile app
-  return `https://web.whatsapp.com/send?phone=${normalized}&text=${encodedMessage}`
+  return `https://wa.me/${normalized}?text=${encodedMessage}`
 }
 
-export function generateWhatsAppDeepLink(phone: string, message: string): string {
-  const normalized = normalizeIntlPhone(phone)
-  const encodedMessage = encodeURIComponent(message)
-  return `whatsapp://send?phone=${normalized}&text=${encodedMessage}`
-}
-
-// Tries app deep link first (mobile), then falls back to wa.me (web). Helps when app ignores text via wa.me
 export function openWhatsApp(phone: string, message: string) {
   const webUrl = generateWhatsAppURL(phone, message)
-  // Try to reuse an existing named tab first to avoid opening a new tab each time
-  let win: Window | null = null
-  try {
-    win = window.open('', 'whatsapp_web')
-  } catch {}
-
-  if (win) {
-    try {
-      win.location.href = webUrl
-      if (typeof win.focus === 'function') win.focus()
-      return
-    } catch {
-      // If we can't navigate existing window (browser restriction), fallback to opening a new/reused named window with URL
-    }
-  }
-
-  // Open or create the named tab
-  const created = window.open(webUrl, 'whatsapp_web')
-  if (created && typeof created.focus === 'function') {
-    try { created.focus() } catch {}
-  }
+  window.open(webUrl, '_blank')
 }
 
 // Generate WhatsApp message template
@@ -147,21 +119,6 @@ export function getStatusColor(status: string): string {
   }
 }
 
-// Generate UPI payment link
-export function generateUPIPaymentURL(
-  amount: number, // in paise
-  orderID: string,
-  customerName: string
-): string {
-  const amountInRupees = (amount / 100).toFixed(2)
-  const upiID = "cyclebees@paytm" // Replace with actual UPI ID
-  const merchantName = "CycleBees"
-  const note = `Payment for Order ${orderID} - ${customerName}`
-  
-  const upiUrl = `upi://pay?pa=${upiID}&pn=${encodeURIComponent(merchantName)}&am=${amountInRupees}&tn=${encodeURIComponent(note)}&tr=${orderID}`
-  
-  return upiUrl
-}
 
 // Generate unique order ID
 export function generateOrderID(): string {

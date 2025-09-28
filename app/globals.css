@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+:root {
+  --brand: #FFD11E; /* CycleBees primary */
+}
+
+/* Safe-area helpers for iOS */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+
 /* Base styles */
 * {
   box-sizing: border-box;

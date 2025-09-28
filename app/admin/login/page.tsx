@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,7 +51,17 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">CycleBees Admin</h1>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <Image
+              src="/logo.png"
+              alt="CycleBees Logo"
+              width={40}
+              height={40}
+              className="object-contain"
+              priority
+            />
+            <h1 className="text-2xl font-bold text-gray-900">CycleBees Admin</h1>
+          </div>
           <p className="text-gray-600 mt-2">Sign in to access the dashboard</p>
         </div>
 

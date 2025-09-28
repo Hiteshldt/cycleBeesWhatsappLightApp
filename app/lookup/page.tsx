@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { AlertCircle, Search } from 'lucide-react'
+import { AlertCircle, Search, MessageCircle } from 'lucide-react'
+import { AppHeader } from '@/components/mobile/AppHeader'
+import { openWhatsApp } from '@/lib/utils'
 
 export default function RequestLookup() {
   const [orderId, setOrderId] = useState('')
@@ -51,27 +53,19 @@ export default function RequestLookup() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">CycleBees</h1>
-            <p className="text-sm text-gray-600">Professional Bike Service</p>
-          </div>
-        </div>
-      </div>
+      <AppHeader title="Find Your Order" subtitle="CycleBees • Bike Service" />
 
-      <div className="max-w-md mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="text-center mb-6">
-            <h2 className="text-lg font-bold text-gray-900">Find Your Service Request</h2>
-            <p className="text-sm text-gray-600 mt-2">Enter your Order ID to view service details</p>
+      <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="mb-5 text-center">
+            <h2 className="text-base font-bold text-gray-900">Look up your service estimate</h2>
+            <p className="mt-1 text-[13px] text-gray-600">Enter your Order ID and phone number</p>
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center">
-              <AlertCircle className="h-4 w-4 text-red-500 mr-2" />
-              <span className="text-red-700 text-sm">{error}</span>
+            <div className="mb-4 flex items-center rounded-md border border-red-200 bg-red-50 p-3">
+              <AlertCircle className="mr-2 h-4 w-4 text-red-500" />
+              <span className="text-sm text-red-700">{error}</span>
             </div>
           )}
 
@@ -83,46 +77,42 @@ export default function RequestLookup() {
                 type="text"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
-                placeholder="e.g., CB25010715342X"
-                className="text-center font-mono"
+                placeholder="CBYYMMDDHHMMXX"
+                className="h-12 text-center font-mono text-base"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Your Order ID starts with &quot;CB&quot; followed by date and time
-              </p>
+              <p className="mt-1 text-[12px] text-gray-500">Starts with CB and includes date/time code</p>
             </div>
 
             <div>
               <Label htmlFor="phoneNumber">Phone Number</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">+</span>
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">+</span>
                 <Input
                   id="phoneNumber"
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="7005192650"
-                  className="pl-8"
+                  className="h-12 pl-8 text-base"
                   maxLength={15}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Enter 10-digit mobile number (91 prefix will be added automatically)
-              </p>
+              <p className="mt-1 text-[12px] text-gray-500">10 digits; 91 will be added automatically</p>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
-              <Search className="h-4 w-4 mr-2" />
-              {isLoading ? 'Searching...' : 'Find My Order'}
+            <Button type="submit" className="h-12 w-full bg-[#FFD11E] text-gray-900 hover:bg-[#ffd633]" disabled={isLoading}>
+              <Search className="mr-2 h-4 w-4" />
+              {isLoading ? 'Searching…' : 'Find My Order'}
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-gray-500">
-            <p>Can&apos;t find your Order ID?</p>
-            <p className="mt-1">Check WhatsApp or contact us</p>
+          <div className="mt-6 flex items-center justify-center gap-2 text-[12px] text-gray-500">
+            <button
+              className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-gray-700"
+              onClick={() => openWhatsApp('919597312212', 'Hi, I need help finding my CycleBees order.')}
+            >
+              <MessageCircle className="h-3.5 w-3.5" /> Need help?
+            </button>
           </div>
         </div>
       </div>

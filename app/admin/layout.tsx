@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
@@ -75,6 +76,14 @@ export default function AdminLayout({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
+              <Image
+                src="/logo.png"
+                alt="CycleBees Logo"
+                width={36}
+                height={36}
+                className="object-contain mr-3"
+                priority
+              />
               <h1 className="text-2xl font-bold text-gray-900">CycleBees</h1>
               <span className="ml-2 text-sm text-gray-500">Admin Dashboard</span>
             </div>

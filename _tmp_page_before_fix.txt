@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -52,7 +52,14 @@ export default function PublicOrderPage() {
   const [confirmedData, setConfirmedData] = useState<ConfirmedData | null>(null)
   const [laCarte, setLaCarte] = useState<LaCarteSettings | null>(null)
   // Mobile tabs (scroll-to-section)
-  const [activeTab, setActiveTab] = useState<'services' | 'addons' | 'bundles' | 'summary'>('services')
+  const [activeTab, setActiveTab] = useState<'services' | 'addons' | 'bundles' | 'summary'>('summary')
+  const servicesRef = React.useRef<HTMLDivElement | null>(null)
+  const addonsRef = React.useRef<HTMLDivElement | null>(null)
+  const bundlesRef = React.useRef<HTMLDivElement | null>(null)
+  const summaryRef = React.useRef<HTMLDivElement | null>(null)
+  
+  // Tab-style navigation (scroll-to-section) for mobile app feel
+  const [activeTab, setActiveTab] = useState<'services' | 'addons' | 'bundles' | 'summary'>('summary')
   const servicesRef = useRef<HTMLDivElement | null>(null)
   const addonsRef = useRef<HTMLDivElement | null>(null)
   const bundlesRef = useRef<HTMLDivElement | null>(null)
@@ -90,16 +97,6 @@ export default function PublicOrderPage() {
     loadLaCarte()
   }, [])
 
-  // Scroll to services section on initial load
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (servicesRef.current) {
-        servicesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }, 100)
-    return () => clearTimeout(timer)
-  }, [])
-
   const loadSelections = () => {
     // Load selections from session storage
     const savedItems = sessionStorage.getItem(`selectedItems_${slug}`)
@@ -120,7 +117,14 @@ export default function PublicOrderPage() {
   }
 
   // Scroll-to-section handler from bottom nav
-  
+  const scrollToSection = (tab: 'services' | 'addons' | 'bundles' | 'summary') => {
+    setActiveTab(tab)
+    const target = tab === 'services' ? servicesRef.current
+      : tab === 'addons' ? addonsRef.current
+      : tab === 'bundles' ? bundlesRef.current
+      : summaryRef.current
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   // Scroll spy to update the active tab as user scrolls
   useEffect(() => {
@@ -333,8 +337,8 @@ export default function PublicOrderPage() {
       .filter(bundle => selectedBundles.has(bundle.id))
       .reduce((sum, bundle) => sum + bundle.price_paise, 0)
     
-    // Add fixed La Carte Services charge (Ã¢â€šÂ¹99)
-    const laCarteCharge = 9900 // Ã¢â€šÂ¹99 in paise
+    // Add fixed La Carte Services charge (₹99)
+    const laCarteCharge = 9900 // ₹99 in paise
     const total = subtotal + addonsTotal + bundlesTotal + laCarteCharge
 
     return { subtotal, addonsTotal, bundlesTotal, laCarteCharge, total }
@@ -560,42 +564,11 @@ export default function PublicOrderPage() {
   const replacementItems = items.filter(item => item.section === 'replacement')
   const totals = calculateTotal()
 
-  // Check if order is already confirmed - show download screen
-  if (request.status === 'confirmed') {
-    return (
-      <div className="min-h-screen bg-gray-50 p-0">
-        <AppHeader title="Order Confirmed" subtitle={`${request.bike_name} • #${request.order_id}`} />
-        <div className="flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-lg shadow-md text-center w-full max-w-md">
-            <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Check className="h-6 w-6 text-green-600" />
-            </div>
-            <h1 className="text-lg font-bold text-gray-900 mb-2">Order Confirmed!</h1>
-            <p className="text-sm text-gray-600 mb-4">
-              Service request for {request.bike_name} confirmed.
-              We&apos;ll contact you soon!
-            </p>
-            <div className="space-y-3">
-              <Button onClick={handleDownloadConfirmedPDF} className="w-full">
-                <Download className="h-4 w-4 mr-2" />
-                Download Estimate
-              </Button>
-              <Button onClick={handleNeedHelp} variant="outline" className="w-full text-sm">
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Need Help?
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   // If order is not confirmed and no selections in session storage, redirect to services page
   if (request.status !== 'confirmed') {
-    const hasSelections = sessionStorage.getItem(`selectedItems_${slug}`) ||
+    const hasSelections = sessionStorage.getItem(`selectedItems_${slug}`) || 
                          sessionStorage.getItem(`selectedAddons_${slug}`)
-
+    
     if (!hasSelections) {
       router.replace(`/o/${slug}/services`)
       return null
@@ -621,17 +594,101 @@ export default function PublicOrderPage() {
     )
   }
 
+  // Check if order is already confirmed
+  if (request.status === 'confirmed') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-0">
+        <AppHeader title="Order Confirmed" subtitle={`${request.bike_name} • ${request.order_id}`} />
+        <div className="flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-lg shadow-md text-center w-full max-w-md">
+          <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Check className="h-6 w-6 text-green-600" />
+          </div>
+          <h1 className="text-lg font-bold text-gray-900 mb-2">Order Confirmed!</h1>
+          <p className="text-sm text-gray-600 mb-4">
+            Service request for {request.bike_name} confirmed. 
+            We&apos;ll contact you soon!
+          </p>
+          <div className="bg-gray-50 p-3 rounded-lg mb-4">
+            <p className="text-xs text-gray-700">Order ID: <strong className="text-sm">#{request.order_id.replace('CB', '')}</strong></p>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <Button 
+              onClick={handleDownloadConfirmedPDF} 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-sm"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+            <Button onClick={handleNeedHelp} variant="outline" className="w-full text-sm">
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Need Help?
+            </Button>
+          </div>
+        </div>
+        </div>
+      )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-40">
-      <AppHeader
-        title="Your Service Order"
-        subtitle={`${request.bike_name} • ${request.customer_name}`}
-        rightSlot={<Badge className="bg-white/90 text-gray-700 text-xs font-medium border">#{request.order_id}</Badge>}
-      />
+      <AppHeader title="Service Estimate" subtitle={`${request.bike_name} • ${request.order_id}`} rightSlot={<Badge className="bg-[#FFD11E] text-gray-900">{request.status}</Badge>} />
 
-      <div className="max-w-md mx-auto px-4 py-3">
+      <div className="max-w-3xl mx-auto px-4 py-6">
+        {/* Progress Indicator - Mobile Optimized */}
+        <div className="flex justify-center mb-6">
+          <div className="flex items-center max-w-full overflow-x-auto">
+            <div className="flex items-center text-green-600 whitespace-nowrap">
+              <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                ✓
+              </div>
+              <span className="ml-1 text-xs font-medium hidden sm:inline">Services</span>
+            </div>
+            <div className="mx-2 w-8 h-1 bg-green-600 rounded flex-shrink-0"></div>
+            <div className="flex items-center text-green-600 whitespace-nowrap">
+              <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                ✓
+              </div>
+              <span className="ml-1 text-xs font-medium hidden sm:inline">Add-ons</span>
+            </div>
+            <div className="mx-2 w-8 h-1 bg-blue-600 rounded flex-shrink-0"></div>
+            <div className="flex items-center text-blue-600 whitespace-nowrap">
+              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                3
+              </div>
+              <span className="ml-1 text-xs font-medium hidden sm:inline">Confirm</span>
+            </div>
+          </div>
+        </div>
 
+        {/* Edit Options - Mobile Optimized */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-medium text-blue-900 text-sm">Ready to confirm?</h3>
+              <p className="text-xs text-blue-700 mt-1">Review selections or make changes</p>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/o/${slug}/services`)}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 flex-1 sm:flex-none text-xs"
+              >
+                Edit Services
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/o/${slug}/addons`)}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100 flex-1 sm:flex-none text-xs"
+              >
+                Edit Add-ons
+              </Button>
+            </div>
+          </div>
+        </div>
 
         {/* Order Summary - Mobile Optimized */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
@@ -779,7 +836,7 @@ export default function PublicOrderPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {bundle.bullet_points.map((point, index) => (
                           <div key={index} className="flex items-start gap-2">
-                            <span className="text-green-600 mt-1 text-sm">Ã¢â‚¬Â¢</span>
+                            <span className="text-green-600 mt-1 text-sm">•</span>
                             <span className="text-sm text-gray-700">{point}</span>
                           </div>
                         ))}
@@ -1017,10 +1074,10 @@ export default function PublicOrderPage() {
       </div>
       <StickyActionBar
         totalPaise={totals.total}
+        primaryLabel={isConfirming ? 'Confirming…' : `Confirm • ${formatCurrency(totals.total)}`}
         onPrimary={handleConfirmOrder}
         disabled={isConfirming}
         rightSlot={<button className="hidden sm:inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-[12px] text-gray-700" onClick={handleNeedHelp}><MessageCircle className="h-3.5 w-3.5"/> Help</button>}
-        primaryLabel={isConfirming ? 'Confirming...' : `Confirm ${formatCurrency(totals.total)}`}
       />
 
       {/* Bottom Tab Bar for quick jumps */}
@@ -1028,3 +1085,4 @@ export default function PublicOrderPage() {
     </div>
   )
 }
+

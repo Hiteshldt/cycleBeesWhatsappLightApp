@@ -9,9 +9,8 @@ import { formatCurrency, formatDate, getStatusColor, openWhatsApp, generateWhats
 import { NotificationManager, StatusChangeDetector } from '@/lib/notification'
 import { Modal } from '@/components/ui/modal'
 import { BillPreview } from '@/components/BillPreview'
-import { NotesManager } from '@/components/NotesManager'
 import { getLaCartePrice } from '@/lib/lacarte'
-import { Eye, Send, Copy, Filter, Download, Bell, BellOff, Trash2, FileText, MessageSquare } from 'lucide-react'
+import { Eye, Send, Copy, Filter, Download, Bell, BellOff, Trash2, FileText } from 'lucide-react'
 
 type RequestWithTotal = Request & {
   total_items: number
@@ -30,15 +29,6 @@ export default function AdminDashboard() {
     isOpen: false,
     billData: null,
     title: ''
-  })
-  const [notesModal, setNotesModal] = useState<{
-    isOpen: boolean
-    requestId: string
-    orderId: string
-  }>({
-    isOpen: false,
-    requestId: '',
-    orderId: ''
   })
   
   // Notification system refs
@@ -208,10 +198,11 @@ export default function AdminDashboard() {
 
       if (request.status === 'confirmed') {
         // For confirmed requests, get the actual confirmed data
-        const [confirmedResponse, requestResponse, addonsResponse] = await Promise.all([
+        const [confirmedResponse, requestResponse, addonsResponse, bundlesResponse] = await Promise.all([
           fetch(`/api/requests/${request.id}/confirmed`),
           fetch(`/api/requests/${request.id}`),
-          fetch('/api/admin/addons')
+          fetch('/api/admin/addons'),
+          fetch('/api/bundles')
         ])
 
         if (!confirmedResponse.ok || !requestResponse.ok) {
@@ -219,9 +210,10 @@ export default function AdminDashboard() {
           return
         }
 
-        const { selectedItems, selectedAddons } = await confirmedResponse.json()
+        const { selectedItems, selectedAddons, selectedBundles } = await confirmedResponse.json()
         const requestData = await requestResponse.json()
         const allAddons = addonsResponse.ok ? await addonsResponse.json() : []
+        const allBundles = bundlesResponse.ok ? await bundlesResponse.json() : []
 
         // Build confirmed selections
         const selectedItemsDetails = (requestData.request_items || []).filter(
@@ -230,11 +222,15 @@ export default function AdminDashboard() {
         const selectedAddonsDetails = (allAddons || []).filter(
           (ad: any) => selectedAddons.includes(ad.id)
         )
+        const selectedBundlesDetails = (allBundles || []).filter(
+          (bd: any) => (selectedBundles || []).includes(bd.id)
+        )
 
         const subtotal = selectedItemsDetails.reduce((sum: number, it: any) => sum + (it.price_paise || 0), 0)
         const addonsTotal = selectedAddonsDetails.reduce((sum: number, ad: any) => sum + (ad.price_paise || 0), 0)
+        const bundlesTotal = selectedBundlesDetails.reduce((sum: number, bd: any) => sum + (bd.price_paise || 0), 0)
         const laCarte = await getLaCartePrice()
-        const total = subtotal + addonsTotal + laCarte
+        const total = subtotal + addonsTotal + bundlesTotal + laCarte
 
         billData = {
           order_id: request.order_id,
@@ -252,8 +248,14 @@ export default function AdminDashboard() {
             description: ad.description,
             price_paise: ad.price_paise,
           })),
+          bundles: selectedBundlesDetails.map((bd: any) => ({
+            name: bd.name,
+            description: bd.description,
+            price_paise: bd.price_paise,
+          })),
           subtotal_paise: subtotal,
           addons_paise: addonsTotal,
+          bundles_paise: bundlesTotal,
           lacarte_paise: laCarte,
           total_paise: total,
           status: 'confirmed',
@@ -296,13 +298,6 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleOpenNotes = (request: Request) => {
-    setNotesModal({
-      isOpen: true,
-      requestId: request.id,
-      orderId: request.order_id
-    })
-  }
 
   const handleDeleteRequest = async (requestId: string, orderId: string) => {
     const isConfirmed = confirm(`Are you sure you want to delete request ${orderId}? This action cannot be undone.`)
@@ -339,7 +334,7 @@ export default function AdminDashboard() {
         alert('Failed to load confirmed selections.')
         return
       }
-      const { selectedItems, selectedAddons } = await respConfirmed.json()
+      const { selectedItems, selectedAddons, selectedBundles } = await respConfirmed.json()
 
       // 2) Load full request with items
       const respRequest = await fetch(`/api/requests/${request.id}`)
@@ -349,19 +344,23 @@ export default function AdminDashboard() {
       }
       const requestData = await respRequest.json()
 
-      // 3) Load addons (admin endpoint to include inactive if needed)
+      // 3) Load addons and bundles
       const respAddons = await fetch('/api/admin/addons')
+      const respBundles = await fetch('/api/bundles')
       const allAddons = respAddons.ok ? await respAddons.json() : []
+      const allBundles = respBundles.ok ? await respBundles.json() : []
 
       // 4) Build selected items/addons arrays with full details
       const selectedItemsDetails = (requestData.request_items || []).filter((it: { id: string; price_paise: number; section: string; label: string }) => selectedItems.includes(it.id))
       const selectedAddonsDetails = (allAddons || []).filter((ad: { id: string; name: string; description: string; price_paise: number }) => selectedAddons.includes(ad.id))
+      const selectedBundlesDetails = (allBundles || []).filter((bd: { id: string; name: string; description: string; price_paise: number }) => (selectedBundles || []).includes(bd.id))
 
       // 5) Compute totals
       const subtotal = selectedItemsDetails.reduce((sum: number, it: { price_paise: number }) => sum + (it.price_paise || 0), 0)
       const addonsTotal = selectedAddonsDetails.reduce((sum: number, ad: { price_paise: number }) => sum + (ad.price_paise || 0), 0)
+      const bundlesTotal = selectedBundlesDetails.reduce((sum: number, b: { price_paise: number }) => sum + (b.price_paise || 0), 0)
       const laCarte = await getLaCartePrice()
-      const total = subtotal + addonsTotal + laCarte
+      const total = subtotal + addonsTotal + bundlesTotal + laCarte
 
       // 6) Create bill data with exact selections
       const billData = {
@@ -380,8 +379,14 @@ export default function AdminDashboard() {
           description: ad.description,
           price_paise: ad.price_paise,
         })),
+        bundles: selectedBundlesDetails.map((bd: { name: string; description: string; price_paise: number }) => ({
+          name: bd.name,
+          description: bd.description,
+          price_paise: bd.price_paise,
+        })),
         subtotal_paise: subtotal,
         addons_paise: addonsTotal,
+        bundles_paise: bundlesTotal,
         lacarte_paise: laCarte,
         total_paise: total,
         status: 'confirmed',
@@ -561,15 +566,6 @@ export default function AdminDashboard() {
                           <Copy className="h-4 w-4" />
                         </Button>
 
-                        {/* Notes Button */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenNotes(request)}
-                          title="Manage Notes"
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
 
                         {/* Preview/View Button */}
                         <Button
@@ -647,20 +643,6 @@ export default function AdminDashboard() {
         )}
       </Modal>
 
-      {/* Notes Modal */}
-      <Modal
-        isOpen={notesModal.isOpen}
-        onClose={() => setNotesModal({ isOpen: false, requestId: '', orderId: '' })}
-        title={`Notes - ${notesModal.orderId}`}
-        size="lg"
-      >
-        {notesModal.requestId && (
-          <NotesManager 
-            requestId={notesModal.requestId} 
-            className="p-4"
-          />
-        )}
-      </Modal>
     </div>
   )
 }

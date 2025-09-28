@@ -62,15 +62,34 @@ export async function GET(
       )
     }
 
+    // Get confirmed bundle selections
+    const { data: confirmedBundles, error: bundlesError } = await supabase
+      .from('confirmed_order_bundles')
+      .select(`
+        bundle_id,
+        service_bundles (*)
+      `)
+      .eq('request_id', id)
+
+    if (bundlesError) {
+      console.error('Error fetching confirmed bundles:', bundlesError)
+      return NextResponse.json(
+        { error: 'Failed to fetch confirmed bundles' },
+        { status: 500 }
+      )
+    }
+
     // Process the data
     const confirmedItems = confirmedServices?.map(cs => cs.request_items).filter(Boolean).flat() || []
     const confirmedAddonsList = confirmedAddons?.map(ca => ca.addons).filter(Boolean).flat() || []
+    const confirmedBundlesList = confirmedBundles?.map(cb => cb.service_bundles).filter(Boolean).flat() || []
 
     // Calculate totals
     const subtotal = confirmedItems.reduce((sum, item) => sum + (item?.price_paise || 0), 0)
     const addonsTotal = confirmedAddonsList.reduce((sum, addon) => sum + (addon?.price_paise || 0), 0)
+    const bundlesTotal = confirmedBundlesList.reduce((sum, bundle: any) => sum + (bundle?.price_paise || 0), 0)
     const laCarteCharge = await getLaCartePrice()
-    const total = subtotal + addonsTotal + laCarteCharge
+    const total = subtotal + addonsTotal + bundlesTotal + laCarteCharge
 
     // Generate PDF data
     const billData = {
@@ -81,8 +100,10 @@ export async function GET(
       confirmed_at: new Date().toISOString(),
       items: confirmedItems,
       addons: confirmedAddonsList,
+      bundles: confirmedBundlesList,
       subtotal_paise: subtotal,
       addons_paise: addonsTotal,
+      bundles_paise: bundlesTotal,
       lacarte_paise: laCarteCharge,
       total_paise: total,
       status: 'confirmed',
